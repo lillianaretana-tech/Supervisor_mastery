@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supervisor Mastery | Gestion operativa por indicadores</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9ded6;
+      --soft: #f5f6f1;
+      --panel: #ffffff;
+      --cream: #faf7ef;
+      --gold: #b88a32;
+      --gold-soft: #fff2cf;
+      --green: #2f8065;
+      --green-soft: #e8f5ef;
+      --blue: #285f8f;
+      --blue-soft: #e8f1f8;
+      --red: #bc4338;
+      --red-soft: #fff0ee;
+      --shadow: 0 18px 42px rgba(23, 32, 51, .10);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.55;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    .app { min-height: 100vh; display: none; grid-template-columns: 300px 1fr; }
+    .app.ready { display: grid; }
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background:
+        radial-gradient(760px 420px at 80% 10%, rgba(184,138,50,.24), transparent 60%),
+        linear-gradient(135deg, #12192a, #25314a);
+    }
+    .auth-overlay.hidden { display: none; }
+    .auth-card {
+      width: 100%;
+      max-width: 430px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.32);
+    }
+    .auth-logo {
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 12px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--gold), #7d5a20);
+      font-weight: 800;
+      font-size: 22px;
+    }
+    .auth-card h2 { margin: 0 0 4px; text-align: center; font-size: 24px; }
+    .auth-card p { margin: 0 0 18px; color: var(--muted); text-align: center; }
+    .auth-card label { display: block; margin: 10px 0 5px; font-size: 13px; font-weight: 800; color: var(--ink); }
+    .auth-card input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 12px;
+      background: #fff;
+    }
+    .auth-actions { display: grid; gap: 9px; margin-top: 15px; }
+    .auth-toggle { margin-top: 14px; text-align: center; color: var(--blue); font-size: 14px; cursor: pointer; font-weight: 700; }
+    .auth-msg { display: none; margin-top: 12px; padding: 10px 12px; border-radius: 7px; font-size: 14px; }
+    .auth-msg.show { display: block; }
+    .auth-msg.err { background: var(--red-soft); color: var(--red); }
+    .auth-msg.ok { background: var(--green-soft); color: var(--green); }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: #fff;
+      border-right: 1px solid var(--line);
+      padding: 22px 18px;
+    }
+    .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--gold), #7d5a20);
+      border-radius: 8px;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .brand h1 { margin: 0; font-size: 17px; line-height: 1.18; }
+    .brand small { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .session-card, .progress-box {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .session-card label { display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 5px; }
+    .session-card input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+    .progress-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .bar { height: 11px; background: #e1e6df; border-radius: 999px; overflow: hidden; }
+    .bar span { display: block; width: 0%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--green)); transition: width .3s ease; }
+    .nav-section {
+      margin: 16px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .nav { display: grid; gap: 6px; }
+    .nav button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-align: left;
+      padding: 10px;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink);
+    }
+    .nav button:hover, .nav button.active { background: var(--gold-soft); }
+    .dot {
+      width: 23px;
+      height: 23px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #eef1ec;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+    .dot.done { background: var(--green); color: #fff; }
+    .nav-title { font-size: 13px; line-height: 1.25; }
+    .side-actions { display: grid; gap: 8px; margin-top: 18px; }
+    .main { padding: 26px; }
+    .content { max-width: 1120px; margin: 0 auto; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: 13px; font-weight: 700; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .hero {
+      background:
+        radial-gradient(900px 440px at 80% -20%, rgba(184,138,50,.22), transparent 62%),
+        linear-gradient(120deg, #12192a, #25314a);
+      color: #fff;
+      border-radius: 14px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .eyebrow { color: #e9cf8f; text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 800; margin-bottom: 8px; }
+    .hero h2 { font-size: clamp(34px, 5vw, 58px); line-height: 1.02; margin: 0 0 14px; max-width: 780px; }
+    .hero p { max-width: 760px; color: #d9deea; font-size: 18px; margin: 0; }
+    .hero-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+    .metric { padding: 15px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); border-radius: 8px; }
+    .metric strong { display: block; font-size: 28px; line-height: 1; }
+    .metric span { color: #c3cad9; font-size: 13px; }
+    .grid { display: grid; gap: 16px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card, .module, .quiz, .activity, .notes {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card h3, .activity h3, .quiz h3 { margin: 0 0 8px; }
+    .card p, .module p { color: var(--muted); }
+    .module-header {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .module-header h2 { margin: 6px 0 8px; font-size: 30px; line-height: 1.12; }
+    .module-header p { color: var(--muted); margin: 0; max-width: 850px; }
+    .module-body { display: grid; gap: 16px; }
+    .lesson-list { display: grid; gap: 10px; margin-top: 12px; }
+    .lesson {
+      border-left: 4px solid var(--gold);
+      padding: 12px 14px;
+      background: #fffaf0;
+      border-radius: 0 8px 8px 0;
+    }
+    .lesson strong { display: block; margin-bottom: 4px; }
+    .notice { background: var(--gold-soft); border: 1px solid #ead19a; color: #5d4618; border-radius: 8px; padding: 14px; }
+    .completion-panel {
+      display: none;
+      background: var(--green-soft);
+      border: 1px solid rgba(47,128,101,.28);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .completion-panel.show { display: block; }
+    .completion-panel strong { display: block; color: var(--green); margin-bottom: 4px; }
+    .completion-panel p { margin: 0; color: var(--ink); }
+    .activity { background: #fbfdfb; }
+    .activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .activity-field label, .notes label, .cert-fields label {
+      display: block;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+    textarea, input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 11px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    .quiz-question { padding: 14px 0; border-top: 1px solid var(--line); }
+    .quiz-question:first-of-type { border-top: 0; }
+    .quiz-question strong { display: block; margin-bottom: 10px; }
+    .options { display: grid; gap: 8px; }
+    .option {
+      width: 100%;
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 7px;
+      background: var(--soft);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .option:hover { border-color: var(--gold); }
+    .option.correct { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+    .option.incorrect { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    .option.selected { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+    .feedback { display: none; margin-top: 8px; padding: 10px; border-radius: 6px; font-size: 14px; }
+    .feedback.show { display: block; }
+    .feedback.good { background: var(--green-soft); color: var(--green); }
+    .feedback.bad { background: var(--red-soft); color: var(--red); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 14px;
+      border-radius: 7px;
+      background: var(--gold);
+      color: #fff;
+      font-weight: 800;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn.secondary { background: #eef1ec; color: var(--ink); }
+    .btn.danger { background: var(--red); color: #fff; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .final-score { font-size: 48px; font-weight: 800; color: var(--gold); line-height: 1; margin: 12px 0; }
+    .cert-gate { margin-top: 14px; padding: 16px; border-radius: var(--radius); background: var(--blue-soft); border: 1px solid var(--line); }
+    .cert-gate.locked { background: var(--soft); }
+    .cert-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+    .cert-fields .full { grid-column: 1 / -1; }
+    .cert-overlay { display: none; position: fixed; inset: 0; background: rgba(15,24,38,.62); z-index: 9999; overflow: auto; padding: 24px; }
+    .cert-overlay.show { display: block; }
+    .cert-toolbar { max-width: 1000px; margin: 0 auto 14px; display: flex; gap: 10px; justify-content: flex-end; }
+    .cert-sheet {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 48px 56px;
+      border: 14px solid #8a6827;
+      border-radius: 6px;
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0,0,0,.38);
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+    .cert-sheet::before { content: ""; position: absolute; inset: 10px; border: 2px solid var(--gold); border-radius: 4px; pointer-events: none; }
+    .cert-inner { position: relative; text-align: center; }
+    .cert-badge {
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 10px;
+      border-radius: 14px;
+      background: #8a6827;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-weight: 800;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cert-brand { font-family: Arial, sans-serif; font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); font-weight: 800; }
+    .cert-title { font-size: 40px; color: var(--ink); margin: 6px 0 2px; font-weight: 700; }
+    .cert-sub { font-family: Arial, sans-serif; font-size: 14px; color: var(--muted); letter-spacing: 1px; margin-bottom: 26px; }
+    .cert-pre { font-size: 16px; color: var(--muted); margin-bottom: 6px; }
+    .cert-name { font-size: 38px; color: #8a6827; font-weight: 700; padding: 4px 0 6px; border-bottom: 2px solid var(--line); display: inline-block; min-width: 60%; margin-bottom: 8px; }
+    .cert-org { font-family: Arial, sans-serif; font-size: 15px; color: var(--muted); margin-bottom: 22px; }
+    .cert-body { font-size: 17px; line-height: 1.6; color: var(--ink); max-width: 700px; margin: 0 auto 26px; }
+    .cert-meta { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 34px; gap: 20px; }
+    .cert-meta .col { flex: 1; font-family: Arial, sans-serif; }
+    .cert-meta .col.center { text-align: center; }
+    .cert-line { border-top: 1.5px solid var(--ink); padding-top: 6px; font-size: 13px; color: var(--muted); }
+    .cert-score-chip { font-family: Arial, sans-serif; display: inline-block; background: var(--gold-soft); color: #7d5a20; font-weight: 800; padding: 6px 16px; border-radius: 20px; font-size: 15px; }
+    .cert-code { font-family: 'Courier New', monospace; font-size: 13px; color: var(--ink); letter-spacing: 1px; }
+    .cert-verify { font-family: Arial, sans-serif; font-size: 11px; color: var(--muted); margin-top: 18px; }
+    .table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+    .table th, .table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .table th { color: var(--muted); font-weight: 800; }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; }
+      .grid.two, .grid.three, .activity-grid, .hero-metrics { grid-template-columns: 1fr; }
+      .main { padding: 18px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 620px) {
+      .hero { padding: 22px; }
+      .cert-fields, .cert-meta { grid-template-columns: 1fr; display: grid; }
+      .cert-sheet { padding: 34px 24px; }
+      .cert-title { font-size: 30px; }
+      .cert-name { font-size: 28px; }
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      .cert-overlay, .cert-overlay * { visibility: visible !important; }
+      .cert-overlay { position: absolute; inset: 0; background: #fff; padding: 0; overflow: visible; }
+      .cert-toolbar { display: none !important; }
+      .cert-sheet { box-shadow: none; margin: 0 auto; max-width: 100%; border-width: 10px; }
+      @page { size: landscape; margin: 12mm; }
+    }
+</style>
+</head>
+<body>
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-logo">SM</div>
+      <h2 id="authTitle">Entrar a Supervisor Mastery</h2>
+      <p id="authSubtitle">Usa tu correo y contrasena para continuar tu avance.</p>
+      <label for="authEmail">Correo electronico</label>
+      <input id="authEmail" type="email" autocomplete="email" placeholder="nombre@empresa.com" />
+      <label for="authPassword">Contrasena</label>
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimo 6 caracteres" />
+      <div class="auth-actions">
+        <button class="btn" id="authPrimary" onclick="handleAuth()">Entrar</button>
+        <button class="btn secondary" onclick="toggleAuthMode()" id="authToggleBtn">Crear usuario nuevo</button>
+      </div>
+      <div class="auth-toggle" onclick="sendPasswordReset()">Olvide mi contrasena</div>
+      <div id="authMsg" class="auth-msg"></div>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">SM</div>
+        <div>
+          <h1>Supervisor Mastery</h1>
+          <small>Gestion operativa por indicadores</small>
+        </div>
+      </div>
+
+      <div class="session-card">
+        <div id="sessionEmail" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+        <label for="studentName">Participante</label>
+        <input id="studentName" placeholder="Nombre completo" oninput="saveProfile()" />
+        <label for="studentOrg">Empresa u organizacion</label>
+        <input id="studentOrg" placeholder="Opcional" oninput="saveProfile()" />
+        <button class="btn secondary" style="width:100%;margin-top:6px;" onclick="signOut()">Cerrar sesion</button>
+      </div>
+
+      <div class="progress-box">
+        <div class="progress-row"><span>Progreso general</span><strong id="progressText">0%</strong></div>
+        <div class="bar"><span id="progressBar"></span></div>
+        <small id="progressDetail">0 de 18 modulos completados</small>
+      </div>
+
+      <div class="nav-section">Aprendizaje</div>
+      <nav class="nav" id="nav"></nav>
+
+      <div class="nav-section">Cierre</div>
+      <nav class="nav">
+        <button onclick="showSection('final')" id="nav-final"><span class="dot" data-dot="final">E</span><span class="nav-title">Examen final</span></button>
+        <button onclick="showSection('resources')" id="nav-resources"><span class="dot">R</span><span class="nav-title">Recursos</span></button>
+      </nav>
+
+      <div class="side-actions">
+        <button class="btn secondary" onclick="printSummary()">Imprimir resumen</button>
+        <button class="btn secondary" onclick="exportProgress()">Exportar progreso</button>
+        <button class="btn danger" onclick="resetProgress()">Reiniciar progreso</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;">Supervisor Mastery · version inicial</div>
+    </aside>
+
+    <main class="main">
+      <div class="content">
+        <div class="topbar">
+          <span class="chip">18 modulos · actividades · examen · certificado</span>
+          <span class="chip">Aprobacion sugerida: 80%+</span>
+        </div>
+
+        <section id="home" class="section active">
+          <div class="hero">
+            <div class="eyebrow">Academia para supervisores de limpieza</div>
+            <h2>Supervisar equipos de limpieza con orden, datos y criterio</h2>
+            <p>Programa para personas que ya fueron operarias, luego lideres, y ahora deben supervisar varios equipos de limpieza. Explica con lenguaje sencillo como controlar rutas, calidad, asistencia, seguridad, quejas, materiales e indicadores sin perder el respeto por la gente.</p>
+            <div class="hero-metrics">
+              <div class="metric"><strong>18</strong><span>modulos interactivos</span></div>
+              <div class="metric"><strong>54</strong><span>preguntas de practica</span></div>
+              <div class="metric"><strong>1</strong><span>examen final con certificado</span></div>
+            </div>
+          </div>
+
+          <div class="grid three" style="margin-top:18px;">
+            <article class="card"><h3>Para quien es</h3><p>Para supervisores nuevos de limpieza que vienen de piso. No asume estudios administrativos: explica paso a paso y con ejemplos de banos, oficinas, areas comunes, turnos y personal.</p></article>
+            <article class="card"><h3>Que aprende</h3><p>A revisar el trabajo con indicadores simples, hablar con lideres, ordenar prioridades, controlar materiales, resolver quejas y dar seguimiento sin improvisar.</p></article>
+            <article class="card"><h3>Como se evalua</h3><p>Las preguntas tienen respuestas parecidas entre si para obligar a analizar. La idea no es memorizar, sino escoger la accion mas segura, justa y profesional.</p></article>
+          </div>
+
+          <div class="card" style="margin-top:18px;">
+            <h3>Ruta recomendada</h3>
+            <table class="table">
+              <tr><th>Bloque</th><th>Modulos</th><th>Resultado</th></tr>
+              <tr><td>Base del rol</td><td>1, 2, 3, 4</td><td>Entender que cambia al pasar de lider a supervisor y que indicadores revisar.</td></tr>
+              <tr><td>Control diario</td><td>5, 6, 7, 8, 9</td><td>Arranque de turno, caminata, calidad, seguridad, asistencia y cobertura.</td></tr>
+              <tr><td>Personas y cliente</td><td>10, 11, 12, 13</td><td>Guiar lideres, manejar quejas, comunicarse entre turnos y tratar desviaciones.</td></tr>
+              <tr><td>Mejora</td><td>14, 15, 16, 17, 18</td><td>Resolver causas, cerrar acciones, controlar materiales y sostener un sistema propio.</td></tr>
+            </table>
+          </div>
+        </section>
+
+        <div id="modulesRoot"></div>
+        <section id="final" class="section"></section>
+        <section id="resources" class="section"></section>
+      </div>
+    </main>
+  </div>
+
+  <div class="cert-overlay" id="certOverlay"></div>
+
+  <script>
+    const CERT_PASS = 80;
+    const SUPABASE_URL = "https://pbmwolzmhjckhpdxyjal.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBibXdvbHptaGpja2hwZHh5amFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDgxMTQsImV4cCI6MjA5ODE4NDExNH0.14isBriI6B3Z1uCn27cSYHl-pGxLm_03xneLvAkOPKw";
+    const STORE_PREFIX = "supervisorMasteryState";
+    let STORE_KEY = STORE_PREFIX + "_guest";
+    let authMode = "login";
+    let currentUser = null;
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    function q(text, options, answer, feedback) {
+      return { text, options, answer, feedback };
+    }
+
+    const modules = [
+      {
+        id: 1,
+        track: "Direccion",
+        title: "Rol del supervisor operativo",
+        subtitle: "Pasar de liderar un equipo a controlar un sistema de trabajo.",
+        sections: [
+          ["Cambio de nivel", "El supervisor no solo resuelve casos individuales. Debe asegurar que varios lideres, operarios, recursos e indicadores funcionen como un sistema coherente."],
+          ["Responsabilidad central", "Su trabajo es convertir metas de negocio en prioridades operativas: seguridad, calidad, entrega, costo, productividad y gente."],
+          ["Riesgo tipico", "Quedarse atrapado en microgestion. Cuando el supervisor hace el trabajo de sus lideres, pierde visibilidad de la operacion completa."]
+        ],
+        activity: {
+          title: "Mapa de responsabilidades",
+          promptA: "Lista tres decisiones que debe tomar un lider de equipo sin escalar.",
+          promptB: "Lista tres decisiones que si deben llegar al supervisor."
+        },
+        quiz: [
+          q("Cual es el foco principal del supervisor?", ["Resolver todo personalmente", "Controlar el sistema operativo mediante prioridades e indicadores", "Evitar hablar con los lideres"], 1, "Correcto: el supervisor gobierna el sistema, no solo casos aislados."),
+          q("Que senal indica microgestion?", ["El supervisor define criterios claros", "Los lideres toman decisiones dentro de su alcance", "Todo debe pasar por el supervisor antes de avanzar"], 2, "Exacto: si todo depende del supervisor, el sistema se vuelve lento."),
+          q("Que debe traducir el supervisor?", ["Metas de negocio en prioridades diarias", "Rumores en instrucciones", "Preferencias personales en reglas"], 0, "Bien: su valor esta en conectar estrategia y ejecucion.")
+        ]
+      },
+      {
+        id: 2,
+        track: "Direccion",
+        title: "Cadena de mando y alcance de control",
+        subtitle: "Definir quien decide, quien informa y cuando se escala.",
+        sections: [
+          ["Cadena clara", "Una operacion con varios equipos necesita rutas claras de decision. La ambiguedad genera doble mando, atrasos y mensajes contradictorios."],
+          ["Alcance de control", "El supervisor debe saber cuantas personas, procesos, turnos o areas puede seguir con calidad sin perder visibilidad."],
+          ["Escalamiento", "Escalar no es fallar. Escalar bien significa llevar datos, impacto, opciones y recomendacion."]
+        ],
+        activity: {
+          title: "Matriz de escalamiento",
+          promptA: "Define una situacion que el lider resuelve en piso.",
+          promptB: "Define una situacion que requiere escalar con datos al supervisor o gerente."
+        },
+        quiz: [
+          q("Que produce una cadena de mando poco clara?", ["Mejor autonomia", "Doble mando y mensajes contradictorios", "Menos reuniones"], 1, "Correcto: la ambiguedad golpea la ejecucion."),
+          q("Que debe incluir un buen escalamiento?", ["Solo la queja", "Datos, impacto, opciones y recomendacion", "Una disculpa larga"], 1, "Bien: escalar con criterio acelera decisiones."),
+          q("Alcance de control significa...", ["Cuanto puede supervisarse con calidad", "Cuantas tareas puede hacer una persona a la vez", "Cuantos reportes se imprimen"], 0, "Exacto: es capacidad real de seguimiento.")
+        ]
+      },
+      {
+        id: 3,
+        track: "Control",
+        title: "Indicadores que gobiernan la operacion",
+        subtitle: "Elegir KPIs utiles y no decorar la pared con numeros.",
+        sections: [
+          ["Indicador util", "Un KPI sirve si permite decidir. Si nadie actua cuando cambia, probablemente es ruido."],
+          ["Familias de indicadores", "Seguridad, calidad, entrega, costo, productividad y gente cubren la salud basica de una operacion."],
+          ["Balance", "Un solo indicador puede deformar conductas. Velocidad sin calidad, costo sin seguridad o productividad sin ausentismo crean riesgos."]
+        ],
+        activity: {
+          title: "Set minimo de KPIs",
+          promptA: "Elige cuatro indicadores criticos para tu operacion.",
+          promptB: "Para cada uno, escribe que accion se toma si sale en rojo."
+        },
+        quiz: [
+          q("Cuando un KPI es util?", ["Cuando se ve elegante", "Cuando orienta decisiones y acciones", "Cuando nadie lo cuestiona"], 1, "Correcto: un indicador sin accion es decoracion."),
+          q("Cual conjunto es mas balanceado?", ["Solo productividad", "Seguridad, calidad, entrega, costo y gente", "Solo costo"], 1, "Exacto: el balance evita optimizar una cosa rompiendo otra."),
+          q("Que riesgo tiene medir solo velocidad?", ["Puede ocultar defectos o riesgos de seguridad", "Siempre mejora la calidad", "Elimina retrabajo automaticamente"], 0, "Bien: velocidad sin control puede salir cara.")
+        ]
+      },
+      {
+        id: 4,
+        track: "Control",
+        title: "Lectura diaria del tablero",
+        subtitle: "Convertir datos en prioridades de accion.",
+        sections: [
+          ["Lectura por excepcion", "El supervisor no revisa todo con la misma energia. Enfoca primero rojos, tendencias negativas y cambios bruscos."],
+          ["Tendencia vs foto", "Un resultado aislado puede enganar. La tendencia muestra si el sistema mejora, empeora o se mantiene inestable."],
+          ["Pregunta clave", "Cada indicador debe responder: que paso, por que importa, que haremos hoy y quien lo sigue."]
+        ],
+        activity: {
+          title: "Rutina de tablero",
+          promptA: "Escribe tres preguntas que haras frente al tablero cada dia.",
+          promptB: "Define quien actualiza cada indicador y a que hora."
+        },
+        quiz: [
+          q("Que debe mirar primero el supervisor?", ["Colores bonitos", "Rojos, tendencias negativas y cambios bruscos", "Indicadores que siempre salen bien"], 1, "Correcto: ahi estan las prioridades."),
+          q("Por que importa la tendencia?", ["Porque muestra direccion del sistema", "Porque reemplaza toda explicacion", "Porque evita tomar acciones"], 0, "Exacto: una foto no siempre cuenta la historia."),
+          q("Un tablero debe terminar en...", ["Una conversacion sin responsables", "Acciones, responsables y seguimiento", "Mas indicadores"], 1, "Bien: tablero que no mueve acciones no gobierna.")
+        ]
+      },
+      {
+        id: 5,
+        track: "Ejecucion",
+        title: "Rutina de arranque de turno",
+        subtitle: "Alinear antes de ejecutar.",
+        sections: [
+          ["Arranque efectivo", "Debe aclarar meta, riesgos, restricciones, ausencias, recursos, cambios y prioridades."],
+          ["Brevedad", "La reunion de arranque no es una clase. Debe ser corta, visual y orientada a ejecucion."],
+          ["Cierre", "Termina con responsables claros y primer punto de verificacion."]
+        ],
+        activity: {
+          title: "Guion de arranque",
+          promptA: "Disena una agenda de cinco minutos para iniciar el turno.",
+          promptB: "Define que informacion debe estar lista antes de la reunion."
+        },
+        quiz: [
+          q("Que no puede faltar en un arranque?", ["Meta, riesgos y restricciones", "Historias largas", "Solo felicitaciones"], 0, "Correcto: el equipo necesita claridad operativa."),
+          q("La reunion de arranque debe ser...", ["Corta, visual y orientada a ejecucion", "Lo mas larga posible", "Sin datos"], 0, "Bien: el tiempo en piso importa."),
+          q("Como debe cerrar?", ["Con responsables y verificacion", "Con dudas abiertas", "Con otra reunion sin fecha"], 0, "Exacto: cerrar sin responsable debilita la rutina.")
+        ]
+      },
+      {
+        id: 6,
+        track: "Ejecucion",
+        title: "Seguimiento en piso",
+        subtitle: "Observar con intencion, no caminar por caminar.",
+        sections: [
+          ["Gemba operativo", "Ir al piso permite ver flujo, estandares, obstaculos y comportamientos reales."],
+          ["Mirada sistemica", "El supervisor observa patrones, no solo incidentes: donde se repite la espera, el retrabajo, el riesgo o la confusion."],
+          ["Conversacion breve", "Preguntas simples revelan mucho: cual es la meta, que impide cumplirla, que ayuda necesitas."]
+        ],
+        activity: {
+          title: "Checklist de caminata",
+          promptA: "Define cinco puntos que revisaras en tu caminata diaria.",
+          promptB: "Escribe dos preguntas que haras a lideres u operarios."
+        },
+        quiz: [
+          q("Para que sirve caminar el piso?", ["Para vigilar sin hablar", "Para observar flujo, estandares y obstaculos reales", "Para reemplazar al lider"], 1, "Correcto: el piso muestra la verdad de la operacion."),
+          q("Que busca una mirada sistemica?", ["Patrones repetidos", "Un culpable inmediato", "Solo errores pequenos"], 0, "Bien: los patrones revelan causas."),
+          q("Una buena pregunta en piso es...", ["Por que siempre fallan?", "Que impide cumplir la meta hoy?", "Quien tiene la culpa?"], 1, "Exacto: abre informacion sin atacar.")
+        ]
+      },
+      {
+        id: 7,
+        track: "Control",
+        title: "Gestion de desviaciones",
+        subtitle: "Contener, analizar, corregir y verificar.",
+        sections: [
+          ["Desviacion", "Es una diferencia entre lo esperado y lo real: meta no cumplida, defecto, incidente, atraso, falta de recurso o incumplimiento de estandar."],
+          ["Primera respuesta", "Contener el impacto antes de discutir culpables. La prioridad es proteger seguridad, calidad, cliente y continuidad."],
+          ["Verificacion", "Una accion no esta cerrada hasta verificar que funciono y que no genero otro problema."]
+        ],
+        activity: {
+          title: "Protocolo de reaccion",
+          promptA: "Describe una desviacion frecuente de tu operacion.",
+          promptB: "Escribe como la contienes, quien analiza y como verificas cierre."
+        },
+        quiz: [
+          q("Que es una desviacion?", ["Una diferencia entre esperado y real", "Un comentario informal", "Una tarea terminada"], 0, "Correcto: la brecha dispara accion."),
+          q("Que va primero?", ["Buscar culpable", "Contener impacto", "Cerrar el caso sin evidencia"], 1, "Bien: primero se protege la operacion."),
+          q("Cuando se cierra una accion?", ["Cuando alguien promete hacerlo", "Cuando se verifica efectividad", "Cuando se olvida el tema"], 1, "Exacto: cierre sin verificacion es deseo.")
+        ]
+      },
+      {
+        id: 8,
+        track: "Direccion",
+        title: "Priorizacion bajo presion",
+        subtitle: "Ordenar urgencias cuando todo parece importante.",
+        sections: [
+          ["Criterios", "Priorizar con seguridad, calidad, cliente, continuidad y costo evita decidir por ruido o por quien grita mas fuerte."],
+          ["Trade-offs", "Supervisar implica elegir. Cada decision debe reconocer que se gana, que se sacrifica y que riesgo queda."],
+          ["Comunicacion", "La prioridad debe explicarse con claridad para reducir friccion entre equipos."]
+        ],
+        activity: {
+          title: "Matriz de prioridades",
+          promptA: "Escribe tres problemas simultaneos que podrian aparecer en tu turno.",
+          promptB: "Ordenalos y justifica el criterio usado."
+        },
+        quiz: [
+          q("Que criterio debe pesar siempre?", ["Quien insiste mas", "Seguridad y calidad", "Lo mas facil"], 1, "Correcto: seguridad y calidad no se negocian."),
+          q("Un trade-off es...", ["Una eleccion con beneficio y sacrificio", "Un error de calculo", "Una reunion"], 0, "Exacto: decidir implica reconocer consecuencias."),
+          q("La prioridad debe comunicarse...", ["Con claridad y criterio", "Solo a quien pregunta", "Despues de que falle todo"], 0, "Bien: claridad reduce friccion.")
+        ]
+      },
+      {
+        id: 9,
+        track: "Ejecucion",
+        title: "Coordinacion de lideres de equipo",
+        subtitle: "Conducir lideres sin quitarles autoridad.",
+        sections: [
+          ["Expectativas", "Cada lider necesita saber resultado esperado, limites de decision, indicadores y frecuencia de seguimiento."],
+          ["Feedback por datos", "La conversacion mejora cuando se centra en hechos, tendencias y compromisos, no en impresiones."],
+          ["Ritmo", "Una cadencia semanal evita que la supervision sea solo reaccion a problemas."]
+        ],
+        activity: {
+          title: "Cadencia con lideres",
+          promptA: "Define que revisaras semanalmente con cada lider.",
+          promptB: "Escribe una pregunta para desarrollar criterio, no dependencia."
+        },
+        quiz: [
+          q("Como se conduce mejor a lideres?", ["Con expectativas, indicadores y seguimiento", "Quitandoles todas las decisiones", "Con mensajes ambiguos"], 0, "Correcto: claridad sin anulacion."),
+          q("El feedback debe basarse en...", ["Hechos y datos", "Rumores", "Estado de animo"], 0, "Bien: reduce defensividad y mejora foco."),
+          q("La cadencia semanal sirve para...", ["Prevenir y dar seguimiento", "Llenar calendario", "Evitar hablar de indicadores"], 0, "Exacto: sostiene ritmo.")
+        ]
+      },
+      {
+        id: 10,
+        track: "Control",
+        title: "Productividad y capacidad",
+        subtitle: "Entender carga, recursos, cuellos de botella y cumplimiento.",
+        sections: [
+          ["Capacidad", "Es lo que el sistema puede producir con recursos, tiempo, habilidades y restricciones disponibles."],
+          ["Cuello de botella", "El punto que limita el flujo. Mejorar otras areas sin atenderlo puede no cambiar el resultado final."],
+          ["Productividad real", "No se trata de hacer mas a cualquier costo, sino de cumplir con seguridad, calidad y uso sano de recursos."]
+        ],
+        activity: {
+          title: "Analisis simple de capacidad",
+          promptA: "Identifica un cuello de botella actual.",
+          promptB: "Escribe que dato necesitas para confirmar si realmente limita el flujo."
+        },
+        quiz: [
+          q("Capacidad significa...", ["Lo que el sistema puede producir con recursos reales", "Lo que se desea producir", "La cantidad de reuniones"], 0, "Correcto: capacidad es posibilidad real."),
+          q("Un cuello de botella es...", ["El punto que limita el flujo", "La persona mas nueva", "Una tarea facil"], 0, "Bien: ahi conviene enfocar mejora."),
+          q("Productividad sana requiere...", ["Seguridad y calidad ademas de volumen", "Solo velocidad", "Menos datos"], 0, "Exacto: producir mal no es productividad.")
+        ]
+      },
+      {
+        id: 11,
+        track: "Control",
+        title: "Calidad en la supervision",
+        subtitle: "Usar defectos, retrabajo y quejas como senales de gestion.",
+        sections: [
+          ["Calidad como sistema", "Un defecto raramente es solo error individual. Puede venir de entrenamiento, material, metodo, ambiente, equipo o presion de tiempo."],
+          ["Costo oculto", "Retrabajo, inspecciones repetidas y quejas consumen capacidad y erosionan confianza."],
+          ["Prevencion", "El supervisor protege calidad cuando refuerza estandares antes de que aparezca la falla."]
+        ],
+        activity: {
+          title: "Mapa de puntos criticos",
+          promptA: "Lista tres puntos donde se generan defectos o retrabajos.",
+          promptB: "Define un control preventivo para uno de esos puntos."
+        },
+        quiz: [
+          q("Un defecto puede venir de...", ["Metodo, material, entrenamiento o presion", "Siempre mala actitud", "Solo clima"], 0, "Correcto: hay que mirar el sistema."),
+          q("El retrabajo afecta...", ["Capacidad y confianza", "Solo el reporte", "Nada si se corrige"], 0, "Bien: retrabajar cuesta."),
+          q("La supervision protege calidad cuando...", ["Refuerza estandares antes de la falla", "Espera que el cliente se queje", "Oculta defectos pequenos"], 0, "Exacto: prevenir gana.")
+        ]
+      },
+      {
+        id: 12,
+        track: "Control",
+        title: "Seguridad como indicador de gestion",
+        subtitle: "Integrar riesgos y acciones preventivas al tablero.",
+        sections: [
+          ["Indicadores proactivos", "Observaciones, condiciones inseguras corregidas y conversaciones preventivas ayudan antes del incidente."],
+          ["Indicadores reactivos", "Incidentes y lesiones muestran fallas que ya tuvieron impacto. Se analizan sin normalizar."],
+          ["Responsabilidad", "El supervisor no delega la seguridad al departamento EHS. La integra en la rutina diaria."]
+        ],
+        activity: {
+          title: "Rutina de seguridad",
+          promptA: "Define dos indicadores proactivos de seguridad.",
+          promptB: "Escribe como se revisaran en la reunion diaria."
+        },
+        quiz: [
+          q("Un indicador proactivo es...", ["Condiciones inseguras corregidas", "Lesiones acumuladas", "Dias desde el ultimo accidente solamente"], 0, "Correcto: ayuda a prevenir."),
+          q("La seguridad en supervision debe...", ["Integrarse a la rutina diaria", "Delegarse por completo a EHS", "Revisarse solo tras accidentes"], 0, "Bien: la seguridad vive en la operacion."),
+          q("Un incidente debe analizarse...", ["Sin normalizarlo", "Como mala suerte siempre", "Solo si fue grave"], 0, "Exacto: incidentes pequenos ensenan.")
+        ]
+      },
+      {
+        id: 13,
+        track: "Ejecucion",
+        title: "Gestion de asistencia y cobertura",
+        subtitle: "Mantener continuidad sin improvisar todos los dias.",
+        sections: [
+          ["Ausencias", "La ausencia no es solo un dato de RRHH. Cambia capacidad, riesgos, prioridades y carga del equipo."],
+          ["Cobertura", "Un plan sano define reemplazos, habilidades criticas y limites de sobrecarga."],
+          ["Tendencias", "Patrones de ausentismo pueden revelar clima, fatiga, liderazgo, horarios o problemas de planificacion."]
+        ],
+        activity: {
+          title: "Plan de cobertura",
+          promptA: "Identifica dos posiciones criticas que no pueden quedar descubiertas.",
+          promptB: "Define quien puede cubrirlas y que entrenamiento falta."
+        },
+        quiz: [
+          q("Una ausencia impacta...", ["Capacidad, riesgo y prioridades", "Solo el payroll", "Nada si alguien corre mas"], 0, "Correcto: cambia la operacion."),
+          q("Un plan de cobertura debe incluir...", ["Reemplazos y habilidades criticas", "Improvisacion diaria", "Solo buena voluntad"], 0, "Bien: cobertura se prepara."),
+          q("Patrones de ausentismo pueden indicar...", ["Problemas de clima, fatiga o planificacion", "Nada importante", "Solo casualidad siempre"], 0, "Exacto: la tendencia habla.")
+        ]
+      },
+      {
+        id: 14,
+        track: "Direccion",
+        title: "Comunicacion entre turnos y areas",
+        subtitle: "Evitar perdidas de informacion entre equipos.",
+        sections: [
+          ["Pase de turno", "Debe transferir estado, riesgos, pendientes, cambios, desviaciones y decisiones tomadas."],
+          ["Areas soporte", "Mantenimiento, calidad, EHS, logistica y RRHH necesitan informacion clara para responder bien."],
+          ["Trazabilidad", "Lo importante no debe depender solo de memoria o mensajes sueltos."]
+        ],
+        activity: {
+          title: "Formato de pase de turno",
+          promptA: "Define cinco datos que siempre deben pasar al siguiente turno.",
+          promptB: "Escribe que informacion debe quedar registrada, no solo hablada."
+        },
+        quiz: [
+          q("Un pase de turno debe incluir...", ["Estado, riesgos, pendientes y decisiones", "Solo saludos", "Informacion incompleta para ahorrar tiempo"], 0, "Correcto: el siguiente turno necesita contexto."),
+          q("La informacion critica debe...", ["Quedar trazable", "Depender de memoria", "Mandarse solo si alguien pregunta"], 0, "Bien: trazabilidad evita perdida."),
+          q("Areas soporte responden mejor cuando...", ["Reciben datos claros", "Reciben urgencias vagas", "No se les informa"], 0, "Exacto: claridad acelera soporte.")
+        ]
+      },
+      {
+        id: 15,
+        track: "Mejora",
+        title: "Analisis de causa raiz para supervisores",
+        subtitle: "Pasar del sintoma a la causa accionable.",
+        sections: [
+          ["Sintoma vs causa", "El sintoma es lo visible. La causa es la condicion que permite que el problema aparezca o se repita."],
+          ["5 porques", "Sirve cuando se usa con evidencia, no como interrogatorio. Debe llegar a una causa sobre la que se pueda actuar."],
+          ["Causa sistemica", "Muchas fallas se sostienen por estandares debiles, entrenamiento incompleto, materiales, equipos o prioridades contradictorias."]
+        ],
+        activity: {
+          title: "5 porques",
+          promptA: "Elige un problema repetido y escribe el sintoma.",
+          promptB: "Haz una cadena de 5 porques hasta llegar a una causa accionable."
+        },
+        quiz: [
+          q("Sintoma es...", ["Lo visible del problema", "La causa final siempre", "La accion correctiva"], 0, "Correcto: el sintoma inicia la investigacion."),
+          q("5 porques debe usarse con...", ["Evidencia", "Culpa", "Prisa para cerrar"], 0, "Bien: sin evidencia se vuelve opinion."),
+          q("Una causa accionable es...", ["Algo que se puede cambiar o controlar", "Una excusa general", "Una persona como etiqueta"], 0, "Exacto: causa raiz debe orientar accion.")
+        ]
+      },
+      {
+        id: 16,
+        track: "Mejora",
+        title: "Acciones correctivas que si cierran",
+        subtitle: "Responsable, fecha, evidencia y verificacion.",
+        sections: [
+          ["Accion clara", "Debe describir que se hara, quien lo hara, para cuando y como se sabra que funciono."],
+          ["Seguimiento", "Una lista de acciones sin revision se vuelve archivo muerto."],
+          ["Efectividad", "No basta implementar. Hay que verificar si redujo la desviacion, el riesgo o la recurrencia."]
+        ],
+        activity: {
+          title: "Registro de acciones",
+          promptA: "Redacta una accion correctiva clara para una causa raiz.",
+          promptB: "Define evidencia de cierre y fecha de verificacion."
+        },
+        quiz: [
+          q("Una accion clara incluye...", ["Que, quien, fecha y evidencia", "Solo buena intencion", "Un titulo ambiguo"], 0, "Correcto: claridad permite seguimiento."),
+          q("Una lista sin revision se vuelve...", ["Archivo muerto", "Mejora garantizada", "Certificacion"], 0, "Bien: sin seguimiento no hay control."),
+          q("Efectividad significa verificar...", ["Si la accion redujo desviacion o recurrencia", "Si se envio un correo", "Si todos estan de acuerdo"], 0, "Exacto: el resultado importa.")
+        ]
+      },
+      {
+        id: 17,
+        track: "Direccion",
+        title: "Reuniones operativas efectivas",
+        subtitle: "Reuniones cortas, visuales y orientadas a decision.",
+        sections: [
+          ["Proposito", "Cada reunion debe tener una razon: alinear, decidir, remover obstaculos o revisar compromisos."],
+          ["Datos visibles", "Tablero, responsables y acciones deben verse. Lo visual reduce interpretaciones y acelera acuerdos."],
+          ["Cierre", "Toda reunion operativa debe cerrar con decisiones, responsables y proxima revision."]
+        ],
+        activity: {
+          title: "Agenda de control",
+          promptA: "Disena una agenda de 15 minutos para reunion operativa.",
+          promptB: "Define que decisiones deberian salir de esa reunion."
+        },
+        quiz: [
+          q("Una reunion efectiva tiene...", ["Proposito claro", "Duracion indefinida", "Solo opiniones"], 0, "Correcto: sin proposito consume energia."),
+          q("Los datos visibles ayudan a...", ["Reducir interpretaciones", "Evitar decisiones", "Hacer mas lenta la reunion"], 0, "Bien: lo visual enfoca."),
+          q("Debe cerrar con...", ["Decisiones, responsables y revision", "Mas dudas", "Una conversacion pendiente"], 0, "Exacto: cierre operativo.")
+        ]
+      },
+      {
+        id: 18,
+        track: "Mejora",
+        title: "Sistema personal de supervision",
+        subtitle: "Integrar tablero, rutinas, escalamiento y mejora.",
+        sections: [
+          ["Sistema propio", "El supervisor necesita una forma repetible de controlar la operacion sin depender del estado de animo o de la urgencia del dia."],
+          ["Cadencia", "Diario, semanal y mensual deben tener propositos distintos: ejecutar, estabilizar y mejorar."],
+          ["Madurez", "Un sistema maduro crea visibilidad, desarrolla lideres y reduce sorpresas."]
+        ],
+        activity: {
+          title: "Playbook del supervisor",
+          promptA: "Resume tu rutina diaria, semanal y mensual de supervision.",
+          promptB: "Define tres reglas personales que sostendran tu sistema."
+        },
+        quiz: [
+          q("Un sistema personal de supervision debe ser...", ["Repetible y visible", "Improvisado", "Secreto"], 0, "Correcto: un sistema se puede sostener y mejorar."),
+          q("La cadencia diaria sirve para...", ["Ejecutar y reaccionar a tiempo", "Hacer analisis anual", "Evitar el piso"], 0, "Bien: diario controla ejecucion."),
+          q("Un sistema maduro reduce...", ["Sorpresas y dependencia", "Claridad", "Seguimiento"], 0, "Exacto: visibilidad baja el caos.")
+        ]
+      }
+    ];
+
+    const extraFinal = [
+      q("Un supervisor maduro evita medir solo productividad porque...", ["Puede incentivar riesgos y defectos", "La productividad no importa", "Los indicadores siempre sobran"], 0, "Balancear indicadores protege el sistema."),
+      q("Si calidad pide detener una liberacion por evidencia incompleta, el supervisor debe...", ["Verificar el riesgo y escalar con datos", "Ignorar para cumplir volumen", "Pedir que lo arreglen despues"], 0, "La evidencia protege cliente y operacion."),
+      q("Cuando dos lideres dan instrucciones opuestas, el problema mas probable es...", ["Falta de cadena de mando clara", "Exceso de puntualidad", "Demasiada documentacion"], 0, "La claridad de autoridad evita friccion."),
+      q("La mejor senal de que un tablero funciona es que...", ["Dispara acciones y seguimiento", "Tiene muchos colores", "Solo lo ve el supervisor"], 0, "Un tablero debe mover decisiones."),
+      q("Una reunion diaria de control no debe convertirse en...", ["Un espacio largo de justificaciones", "Un punto de alineacion", "Una revision de indicadores"], 0, "Debe ser breve y accionable."),
+      q("Si una desviacion se repite, la respuesta correcta es...", ["Analizar causa raiz y efectividad de acciones previas", "Cambiar el nombre del indicador", "Cerrar mas rapido"], 0, "La repeticion indica que la causa no fue controlada.")
+    ];
+
+    modules.splice(0, modules.length, ...[
+      {
+        id: 1, track: "Base del rol", title: "De lider a supervisor de limpieza", subtitle: "Entender que ahora no solo se revisa una tarea: se controla una operacion con varios equipos.",
+        sections: [
+          ["Que cambia", "Como lider revisabas mas de cerca a tu equipo. Como supervisor debes ver varias areas, varios lideres, ausencias, quejas, materiales, riesgos y resultados."],
+          ["Tu nuevo trabajo", "No es hacer todo personalmente. Es asegurar que el trabajo salga bien, que los lideres sepan que hacer y que los problemas se atiendan a tiempo."],
+          ["Ejemplo simple", "Si un bano queda mal limpiado, no basta corregir ese bano. El supervisor pregunta: quien reviso, que estandar fallo, falto material, falto tiempo o falto seguimiento."]
+        ],
+        activity: { title: "Cambio de responsabilidades", promptA: "Escribe tres cosas que antes hacias como lider y que ahora debes delegar mejor.", promptB: "Escribe tres cosas que ahora debes revisar como supervisor de limpieza." },
+        quiz: [
+          q("Un supervisor ve que una lider no reviso banos antes de entregar el turno. Que debe hacer primero?", ["Corregir los banos el mismo y no decir nada para evitar conflicto", "Hablar con la lider, revisar la causa y acordar como se verificara en el siguiente turno", "Mandar un mensaje general diciendo que todos deben mejorar"], 1, "Correcto. El supervisor corrige el sistema: causa, responsable y seguimiento."),
+          q("Cual frase muestra mejor el cambio de lider a supervisor?", ["Ahora debo hacer las tareas mas dificiles para que el equipo vea mi esfuerzo", "Ahora debo asegurar que varios equipos trabajen con estandar, datos y seguimiento", "Ahora solo debo revisar reportes al final del dia"], 1, "Exacto. El supervisor mira la operacion completa, no solo una tarea."),
+          q("Si el supervisor resuelve todo personalmente, que riesgo aparece?", ["Los lideres aprenden mas rapido porque no deciden", "La operacion depende de una sola persona y se vuelve lenta", "Los indicadores dejan de ser necesarios"], 1, "Bien. Supervisar no es cargar todo; es hacer que el sistema funcione.")
+        ]
+      },
+      {
+        id: 2, track: "Base del rol", title: "Orden de mando y respeto por el lider", subtitle: "Saber que decide el operario, que decide el lider y que debe escalar el supervisor.",
+        sections: [
+          ["Orden claro", "El operario debe saber a quien pedir ayuda. El lider debe saber que puede resolver. El supervisor debe intervenir cuando afecta calidad, cliente, seguridad, costo o cumplimiento."],
+          ["No saltarse al lider", "Si el supervisor corrige todo directo con operarios, debilita al lider. A veces debe intervenir, pero luego debe alinear con el lider."],
+          ["Escalar bien", "Escalar no es decir 'hay problema'. Es explicar que paso, donde, a quien afecta, que se hizo y que decision se necesita."]
+        ],
+        activity: { title: "Matriz de decisiones", promptA: "Escribe una decision que puede tomar un operario de limpieza sin pedir permiso.", promptB: "Escribe una situacion que el lider debe escalar al supervisor." },
+        quiz: [
+          q("Un operario pide cambiar el quimico porque 'huele mas fuerte y limpia mejor'. Que respuesta es mas correcta?", ["Autorizarlo si el area queda mas brillante", "Decirle que solo se usan quimicos aprobados y pedir al lider revisar la necesidad real", "Probarlo en un area pequena sin avisar"], 1, "Correcto. En limpieza, quimicos no aprobados pueden crear riesgo, dano o incumplimiento."),
+          q("Cuando el supervisor corrige siempre directo al operario sin hablar con el lider, que puede pasar?", ["El lider pierde autoridad y el equipo se confunde", "El equipo se ordena automaticamente", "Se elimina la necesidad de seguimiento"], 0, "Exacto. El supervisor debe cuidar la cadena de mando."),
+          q("Cual escalamiento esta mejor hecho?", ["Supervisor, hay un problema en el piso 3", "Falta papel en banos del piso 3 desde las 10 am, ya se redistribuyo material y falta reposicion de bodega", "La gente no ayuda"], 1, "Bien. Incluye lugar, hora, accion tomada y decision necesaria.")
+        ]
+      },
+      {
+        id: 3, track: "Base del rol", title: "Estandares de limpieza que todos entienden", subtitle: "Convertir 'limpio' en criterios claros: que se ve, que se toca, que se repone y que se registra.",
+        sections: [
+          ["Limpio no es opinion", "Para evitar discusiones, el estandar debe decir que revisar: olor, basura, manchas, polvo, dispensadores, piso seco, senalizacion y registro."],
+          ["Antes y despues", "Una buena supervision compara el estado esperado con el estado real. Si no hay criterio, cada persona limpia a su manera."],
+          ["Entrenar con ejemplos", "A muchos operarios les ayuda ver fotos, demostraciones y listas cortas mas que leer textos largos."]
+        ],
+        activity: { title: "Estandar visible", promptA: "Elige un area: bano, oficina, comedor o pasillo. Escribe cinco puntos que significan 'bien limpio'.", promptB: "Escribe como le explicarias ese estandar a una persona nueva." },
+        quiz: [
+          q("Un cliente dice que un bano 'se ve sucio', pero el operario dice que ya lo limpio. Que debe hacer el supervisor?", ["Defender al operario sin revisar porque ya marco la ruta", "Revisar contra el estandar: olor, manchas, basura, dispensadores, piso y registro", "Pedir disculpas y cambiar al operario de inmediato"], 1, "Correcto. Se revisa con criterios claros, no con opiniones."),
+          q("Cual estandar es mas claro?", ["Dejar bonito el area", "Barrer bien y rapido", "Piso sin basura visible, basureros bajo 75%, lavamanos sin manchas y dispensadores con producto"], 2, "Exacto. Un estandar claro dice que observar."),
+          q("Si cada lider entiende 'limpio' de forma distinta, que conviene hacer?", ["Aceptar estilos distintos", "Crear una guia visual y practicar revision juntos", "Revisar solo cuando haya quejas"], 1, "Bien. La guia visual alinea criterios.")
+        ]
+      },
+      {
+        id: 4, track: "Base del rol", title: "Indicadores simples para limpieza", subtitle: "Medir pocas cosas, pero medirlas bien.",
+        sections: [
+          ["Indicadores basicos", "Para limpieza sirven: cumplimiento de ruta, quejas, retrabajos, asistencia, accidentes, consumo de materiales y tareas especiales completadas."],
+          ["Indicador con accion", "Si un dato no cambia ninguna decision, no ayuda. Cada indicador debe tener una pregunta: que haremos si sale mal?"],
+          ["Cuidado", "No usar indicadores para castigar de inmediato. Primero ayudan a encontrar donde falta apoyo, entrenamiento, material o seguimiento."]
+        ],
+        activity: { title: "Tablero simple", promptA: "Elige cuatro indicadores para supervisar limpieza en tu operacion.", promptB: "Escribe que accion tomarias si uno sale en rojo." },
+        quiz: [
+          q("El indicador de quejas subio esta semana. Cual es la mejor primera lectura?", ["El equipo esta trabajando mal y hay que reganarlo", "Hay que revisar areas, horarios, tipo de queja y si faltan recursos o seguimiento", "No importa si las rutas se completaron"], 1, "Correcto. El dato abre una investigacion, no una culpa inmediata."),
+          q("Cual indicador ayuda mas a controlar banos de alto trafico?", ["Color del uniforme", "Frecuencia de revision y reposicion durante el dia", "Antiguedad del edificio solamente"], 1, "Bien. En banos de alto uso, la frecuencia de revision es clave."),
+          q("Un buen indicador debe servir para...", ["Tomar decisiones y dar seguimiento", "Llenar una tabla", "Comparar personas sin contexto"], 0, "Exacto. Medir sin actuar no mejora la limpieza.")
+        ]
+      },
+      {
+        id: 5, track: "Control diario", title: "Arranque de turno en limpieza", subtitle: "Empezar el dia con prioridades claras, no con carreras.",
+        sections: [
+          ["Que revisar", "Asistencia, areas criticas, eventos del dia, quejas pendientes, materiales, equipos, seguridad y cambios de ruta."],
+          ["Tiempo corto", "El arranque debe ser breve. No es para discursos largos; es para que todos sepan que importa hoy."],
+          ["Confirmar entendimiento", "El supervisor debe verificar que los lideres sepan donde enfocar y cuando reportar avances."]
+        ],
+        activity: { title: "Agenda de arranque", promptA: "Disena una reunion de arranque de 7 minutos para lideres de limpieza.", promptB: "Escribe que datos necesitas tener listos antes de iniciar." },
+        quiz: [
+          q("Faltaron dos personas y hay auditoria en la tarde. Que debe hacer el supervisor en el arranque?", ["Pedir que todos trabajen mas rapido sin cambiar nada", "Repriorizar rutas, cubrir areas criticas y explicar que quedara para seguimiento", "Cancelar las revisiones para ahorrar tiempo"], 1, "Correcto. Se ajusta el plan con prioridades claras."),
+          q("Cual tema no debe faltar en un arranque de limpieza?", ["Eventos, areas criticas, asistencia y materiales", "Chismes del turno anterior", "Solo felicitaciones generales"], 0, "Bien. El arranque prepara la ejecucion."),
+          q("Si un lider sale del arranque sin entender su prioridad, que falla?", ["La comunicacion del supervisor", "La actitud del cliente", "El formato del uniforme"], 0, "Exacto. La reunion debe terminar con claridad.")
+        ]
+      },
+      {
+        id: 6, track: "Control diario", title: "Caminata de supervision", subtitle: "Caminar el area para observar, preguntar y corregir a tiempo.",
+        sections: [
+          ["No es pasear", "La caminata revisa puntos criticos: banos, entradas, oficinas, comedores, basureros, pisos, senales de seguridad y registros."],
+          ["Preguntar bien", "Preguntas utiles: que falta para terminar, que area esta mas pesada hoy, que material se esta acabando, que queja se repite."],
+          ["Corregir con respeto", "Si se detecta una falla, se corrige el estandar sin humillar. Luego se revisa si el lider esta dando seguimiento."]
+        ],
+        activity: { title: "Checklist de caminata", promptA: "Escribe seis puntos que revisaras en una caminata de limpieza.", promptB: "Escribe dos preguntas que haras a un lider durante la caminata." },
+        quiz: [
+          q("Durante la caminata, el supervisor ve un piso mojado sin senal. Que debe hacer?", ["Seguir caminando y anotarlo para despues", "Asegurar senalizacion inmediata y revisar por que no se coloco", "Esperar a que el lider lo vea solo"], 1, "Correcto. Primero se controla el riesgo, luego se revisa la causa."),
+          q("Que pregunta ayuda mas a detectar problemas reales?", ["Por que no terminan nunca?", "Que obstaculo te esta atrasando hoy?", "Quien fue el culpable?"], 1, "Bien. La pregunta busca informacion, no defensa."),
+          q("Una caminata efectiva termina con...", ["Observaciones, responsables y seguimiento", "Solo fotos en el telefono", "Comentarios sueltos sin accion"], 0, "Exacto. Lo observado debe convertirse en accion.")
+        ]
+      },
+      {
+        id: 7, track: "Control diario", title: "Calidad y retrabajo", subtitle: "Evitar que el equipo limpie dos veces por falta de control.",
+        sections: [
+          ["Retrabajo", "Es repetir una tarea porque no quedo bien o no se reviso. Consume tiempo, cansa al equipo y molesta al cliente."],
+          ["Control temprano", "Revisar una muestra durante el turno evita descubrir todo al final."],
+          ["Causa real", "Puede ser falta de entrenamiento, prisa, mala herramienta, quimico incorrecto, ruta mal calculada o estandar poco claro."]
+        ],
+        activity: { title: "Analisis de retrabajo", promptA: "Describe una tarea de limpieza que se repite mucho.", promptB: "Escribe tres causas posibles antes de culpar a la persona." },
+        quiz: [
+          q("Un area se retrabaja casi todos los dias. Cual es la mejor accion del supervisor?", ["Cambiar de operario cada dia hasta que mejore", "Revisar causa: tiempo, estandar, herramienta, entrenamiento y seguimiento", "Aceptar el retrabajo como parte normal"], 1, "Correcto. Si se repite, hay causa de sistema."),
+          q("Que control ayuda a evitar retrabajo al final del turno?", ["Revision temprana de puntos criticos", "Esperar la queja del cliente", "Pedir fotos sin visitar el area"], 0, "Bien. La revision temprana permite corregir a tiempo."),
+          q("Retrabajo afecta principalmente...", ["Tiempo, costo, cansancio y confianza", "Solo el orgullo del operario", "Nada si se termina antes de salir"], 0, "Exacto. Repetir trabajo tiene costo real.")
+        ]
+      },
+      {
+        id: 8, track: "Control diario", title: "Seguridad en limpieza", subtitle: "Prevenir caidas, mezclas de quimicos, cortaduras y exposicion.",
+        sections: [
+          ["Riesgos comunes", "Pisos mojados, quimicos mal usados, envases sin etiqueta, vidrios, objetos punzantes, cargas pesadas y areas con publico."],
+          ["No normalizar", "Que 'siempre se hizo asi' no significa que sea seguro."],
+          ["Supervisor responsable", "El supervisor debe revisar EPP, senalizacion, diluciones, etiquetas y reporte de condiciones inseguras."]
+        ],
+        activity: { title: "Riesgos del turno", promptA: "Escribe tres riesgos de seguridad comunes en tu operacion de limpieza.", promptB: "Define como los revisara el lider y como los seguira el supervisor." },
+        quiz: [
+          q("Un operario mezcla dos quimicos para quitar una mancha dificil. Que debe hacer el supervisor?", ["Permitirlo si funciona", "Detener la practica, asegurar el area y reforzar uso de quimicos aprobados", "Pedir que lo haga solo cuando no haya cliente"], 1, "Correcto. Mezclar quimicos puede ser peligroso."),
+          q("Un piso esta mojado en area de paso. La accion mas completa es...", ["Poner senalizacion, controlar el area y revisar por que quedo asi", "Decirle al cliente que tenga cuidado", "Esperar a que se seque"], 0, "Bien. Se controla el riesgo y se revisa la causa."),
+          q("Cual frase es peligrosa?", ["Siempre usamos EPP cuando el procedimiento lo pide", "Si no hay tiempo, se puede saltar la senalizacion", "Los envases deben estar identificados"], 1, "Exacto. La prisa no justifica crear riesgo.")
+        ]
+      },
+      {
+        id: 9, track: "Control diario", title: "Asistencia, cobertura y carga de trabajo", subtitle: "Cubrir ausencias sin reventar al equipo ni abandonar areas criticas.",
+        sections: [
+          ["Ausencia cambia el plan", "Si falta gente, no se puede fingir que todo sigue igual. Hay que priorizar areas criticas y avisar impactos."],
+          ["Cobertura inteligente", "No todos pueden cubrir todo. Hay tareas que requieren entrenamiento, fuerza, autorizacion o conocimiento del area."],
+          ["Cuidar al equipo", "Sobrecargar siempre a los mismos genera cansancio, errores y ausencias futuras."]
+        ],
+        activity: { title: "Plan de cobertura", promptA: "Escribe dos puestos criticos de limpieza que siempre deben cubrirse.", promptB: "Define que se hace si falta una persona en cada puesto." },
+        quiz: [
+          q("Falta una persona en un area de alto trafico. Que decision es mas profesional?", ["Repartir todo igual y esperar que alcance", "Priorizar areas criticas, ajustar frecuencia y comunicar impacto si algo queda fuera", "Eliminar descansos para cumplir todo"], 1, "Correcto. Se ajusta con criterio y se comunica."),
+          q("Por que no conviene cargar siempre al mejor operario?", ["Porque puede cansarse, cometer errores o desmotivarse", "Porque los buenos no deben ayudar", "Porque el cliente no lo nota"], 0, "Bien. La cobertura tambien cuida sostenibilidad."),
+          q("Una buena cobertura considera...", ["Habilidades, area critica y riesgo", "Solo quien esta mas cerca", "Solo quien se queja menos"], 0, "Exacto. No toda tarea se cubre igual.")
+        ]
+      },
+      {
+        id: 10, track: "Personas y cliente", title: "Coordinar lideres de limpieza", subtitle: "Guiar a los lideres sin quitarles autoridad frente al equipo.",
+        sections: [
+          ["Lider como aliado", "El lider es los ojos diarios del supervisor. Necesita direccion clara, seguimiento y respaldo."],
+          ["No humillar", "Corregir a un lider frente a su equipo puede destruir autoridad. Si el riesgo no es urgente, se conversa aparte."],
+          ["Revisar con datos", "Hablar de rutas, quejas, asistencia, retrabajos y acciones evita conversaciones basadas solo en opinion."]
+        ],
+        activity: { title: "Reunion con lideres", promptA: "Escribe tres temas que revisaras semanalmente con tus lideres.", promptB: "Escribe una forma respetuosa de corregir a un lider que no dio seguimiento." },
+        quiz: [
+          q("Un lider dio una instruccion incompleta y el equipo fallo. Que conviene hacer?", ["Exponerlo frente a todos para que aprenda", "Corregir el resultado, hablar aparte con el lider y aclarar como comunicara la proxima vez", "Quitarle todas las decisiones por una semana"], 1, "Correcto. Se protege el estandar y tambien la autoridad del lider."),
+          q("La mejor reunion con lideres se basa en...", ["Datos, problemas reales y compromisos", "Reclamos generales", "Solo lo que el supervisor recuerda"], 0, "Bien. Los datos ordenan la conversacion."),
+          q("Un lider necesita del supervisor...", ["Expectativas claras y seguimiento", "Solo reganos cuando falla", "Que haga su trabajo por el"], 0, "Exacto. Guiar no es reemplazar.")
+        ]
+      },
+      {
+        id: 11, track: "Personas y cliente", title: "Manejo de quejas del cliente", subtitle: "Responder sin culpar, sin prometer de mas y sin esconder el problema.",
+        sections: [
+          ["Escuchar primero", "Una queja puede venir molesta, pero trae informacion. Primero se entiende que paso, donde, cuando y que espera el cliente."],
+          ["Verificar", "No se promete ni se culpa sin revisar. Se confirma el area, la ruta, el registro, el estandar y el responsable."],
+          ["Cerrar", "Una queja se cierra cuando se corrige, se comunica la accion y se evita repeticion."]
+        ],
+        activity: { title: "Respuesta a queja", promptA: "Escribe una queja comun de limpieza.", promptB: "Redacta una respuesta profesional: escuchar, verificar, corregir y prevenir." },
+        quiz: [
+          q("El cliente reclama que el comedor quedo sucio despues del almuerzo. Que respuesta es mejor?", ["Eso no puede ser, mi equipo ya paso", "Gracias por avisar. Revisamos ahora, corregimos y verifico la frecuencia despues del almuerzo", "Voy a cambiar al operario para que no vuelva a pasar"], 1, "Correcto. Reconoce, actua y revisa el sistema."),
+          q("Antes de culpar a una persona por una queja, el supervisor debe...", ["Verificar hechos, ruta, hora, estandar y recursos", "Pedir disculpas y cerrar", "Esperar otra queja"], 0, "Bien. Se decide con hechos."),
+          q("Una queja se cierra bien cuando...", ["Se corrige y se define como evitar repeticion", "Se borra del chat", "El cliente deja de escribir por un rato"], 0, "Exacto. Cerrar incluye prevencion.")
+        ]
+      },
+      {
+        id: 12, track: "Personas y cliente", title: "Comunicacion entre turnos y areas", subtitle: "Que el siguiente turno no empiece a ciegas.",
+        sections: [
+          ["Pase de turno", "Debe incluir pendientes, areas criticas, materiales bajos, quejas, equipos danados, riesgos y cambios solicitados por cliente."],
+          ["No solo verbal", "Lo importante debe quedar escrito o registrado. La memoria falla, especialmente con turnos cargados."],
+          ["Areas soporte", "Bodega, mantenimiento, seguridad o administracion necesitan datos claros para ayudar."]
+        ],
+        activity: { title: "Formato de pase", promptA: "Escribe cinco datos que deben pasarse entre turnos de limpieza.", promptB: "Define que cosas deben quedar por escrito siempre." },
+        quiz: [
+          q("Un turno deja una maquina danada y solo lo comenta de palabra. Al dia siguiente nadie sabe. Que fallo?", ["Falto registro claro en el pase de turno", "Falto suerte", "El siguiente turno debio adivinar"], 0, "Correcto. Lo critico no puede depender solo de memoria."),
+          q("Cual pase de turno es mas util?", ["Todo normal", "Piso 2: queja en bano norte, falta jabon, maquina 3 con ruido, mantenimiento avisado 3:20 pm", "Hubo varias cosas, revisar"], 1, "Bien. Detalla lugar, problema y accion."),
+          q("La comunicacion con bodega debe incluir...", ["Material, cantidad, urgencia y area afectada", "Solo 'urge'", "Solo una foto sin contexto"], 0, "Exacto. Datos claros ayudan a responder.")
+        ]
+      },
+      {
+        id: 13, track: "Personas y cliente", title: "Desviaciones y decisiones dificiles", subtitle: "Cuando algo no sale como estaba planeado, se actua con orden.",
+        sections: [
+          ["Desviacion", "Es una diferencia entre lo esperado y lo real: area no atendida, queja, accidente, falta de material, equipo danado o ruta incompleta."],
+          ["Contener", "Primero se controla el impacto: seguridad, cliente, higiene o continuidad."],
+          ["Analizar", "Luego se revisa causa y se define accion. No basta decir 'que no vuelva a pasar'."]
+        ],
+        activity: { title: "Caso de desviacion", promptA: "Describe una desviacion comun en limpieza.", promptB: "Escribe como la contienes, a quien informas y como evitas que se repita." },
+        quiz: [
+          q("Se descubre que un area critica no fue limpiada. Que debe hacer el supervisor primero?", ["Buscar culpable en el chat", "Contener: cubrir el area, avisar si impacta al cliente y revisar causa", "Esperar al cierre del turno"], 1, "Correcto. Primero se controla el impacto."),
+          q("Cual frase NO resuelve una desviacion?", ["Revisemos por que paso", "Que no vuelva a pasar", "Definamos responsable, accion y verificacion"], 1, "Exacto. Esa frase no define accion real."),
+          q("Si falta material y por eso no se completo una ruta, la causa puede estar en...", ["Planificacion, bodega, consumo o comunicacion", "Solo mala actitud", "El clima"], 0, "Bien. Hay que revisar el proceso completo.")
+        ]
+      },
+      {
+        id: 14, track: "Mejora", title: "Causa raiz con palabras simples", subtitle: "No quedarse en 'no quiso' o 'se le olvido'.",
+        sections: [
+          ["Causa raiz", "Es la razon de fondo que permite que el problema aparezca o se repita."],
+          ["Preguntar sin atacar", "El supervisor pregunta que paso, que faltaba, que no estaba claro y que condicion permitio la falla."],
+          ["Causas comunes", "Falta de tiempo real, ruta mal calculada, entrenamiento incompleto, material insuficiente, equipo danado o estandar confuso."]
+        ],
+        activity: { title: "Cinco porques", promptA: "Elige un problema repetido de limpieza y escribe el primer 'por que'.", promptB: "Sigue preguntando hasta encontrar una causa que puedas corregir." },
+        quiz: [
+          q("Un bano queda sin reposicion tres veces en la semana. Cual pregunta ayuda mas?", ["Quien fue el descuidado?", "En que momento se revisa reposicion y quien confirma material disponible?", "Por que nadie pone de su parte?"], 1, "Correcto. Busca causa del proceso."),
+          q("Cual puede ser causa raiz real?", ["La ruta no considera el aumento de trafico despues del almuerzo", "El equipo es malo", "El cliente exige mucho"], 0, "Bien. Es una condicion concreta que se puede corregir."),
+          q("Preguntar causa raiz sirve para...", ["Evitar repeticion", "Encontrar a quien culpar mas rapido", "Hacer el reporte mas largo"], 0, "Exacto. La meta es prevenir.")
+        ]
+      },
+      {
+        id: 15, track: "Mejora", title: "Acciones correctivas que si se cumplen", subtitle: "Que, quien, cuando y como se verifica.",
+        sections: [
+          ["Accion clara", "Debe decir exactamente que se hara. 'Mejorar supervision' no alcanza."],
+          ["Responsable y fecha", "Si todos son responsables, nadie lo es. Cada accion necesita una persona y fecha."],
+          ["Verificacion", "Despues se revisa si funciono: menos quejas, menos retrabajo, ruta completa o riesgo controlado."]
+        ],
+        activity: { title: "Plan de accion", promptA: "Redacta una accion correctiva para una falla de limpieza.", promptB: "Escribe quien la hara, para cuando y como comprobaras que funciono." },
+        quiz: [
+          q("Cual accion correctiva esta mejor escrita?", ["Mejorar limpieza de banos", "Lider Ana revisara banos norte a las 10 am y 2 pm por 5 dias; supervisor verificara quejas y reposicion", "Poner mas atencion"], 1, "Correcto. Tiene responsable, frecuencia y verificacion."),
+          q("Una accion sin fecha normalmente...", ["Pierde fuerza y se queda pendiente", "Se cumple mas rapido", "No necesita seguimiento"], 0, "Bien. Sin fecha no hay control."),
+          q("Como se verifica una accion?", ["Con evidencia o resultado observable", "Con una promesa", "Con un mensaje de 'listo' sin revisar"], 0, "Exacto. Verificar es mirar si funciono.")
+        ]
+      },
+      {
+        id: 16, track: "Mejora", title: "Materiales, equipos y quimicos", subtitle: "Controlar recursos para que el equipo pueda cumplir y trabajar seguro.",
+        sections: [
+          ["Materiales", "Papel, jabon, bolsas, panos, mopas y guantes deben tener control de consumo y reposicion."],
+          ["Equipos", "Carros, aspiradoras, maquinas, escobas y senales deben estar disponibles y en buen estado."],
+          ["Quimicos", "Solo se usan productos aprobados, rotulados y con dilucion correcta. Improvisar puede ser peligroso."]
+        ],
+        activity: { title: "Control de recursos", promptA: "Lista cinco materiales o equipos criticos para tu operacion.", promptB: "Define como sabras que se estan acabando antes de que falten." },
+        quiz: [
+          q("El equipo reporta que no alcanzo el papel para banos. Que debe revisar el supervisor?", ["Consumo, reposicion, inventario, frecuencia y comunicacion con bodega", "Solo quien gasto de mas", "Nada, eso es problema de bodega"], 0, "Correcto. El recurso se controla como parte de la operacion."),
+          q("Una botella sin etiqueta debe...", ["Usarse si el color parece conocido", "Retirarse o identificarse segun procedimiento antes de usar", "Guardarse para emergencias"], 1, "Bien. Sin etiqueta hay riesgo."),
+          q("Si una maquina falla seguido, lo mejor es...", ["Registrar fallas, sacar de uso si hay riesgo y pedir mantenimiento con datos", "Seguir usandola hasta que se detenga", "Culpar al operario que la uso ultimo"], 0, "Exacto. Equipo danado requiere control.")
+        ]
+      },
+      {
+        id: 17, track: "Mejora", title: "Reuniones cortas y utiles", subtitle: "Hablar para decidir, no para dar vueltas.",
+        sections: [
+          ["Reunion diaria", "Debe revisar indicadores, pendientes, riesgos, quejas y acciones abiertas."],
+          ["Pocas palabras", "Una reunion operativa debe ser clara. Si se vuelve larga, la gente pierde foco y se atrasa el trabajo."],
+          ["Cierre", "Debe terminar con quien hace que, para cuando y como se revisa."]
+        ],
+        activity: { title: "Reunion de control", promptA: "Disena una reunion de 10 minutos con lideres de limpieza.", promptB: "Escribe tres decisiones que pueden salir de esa reunion." },
+        quiz: [
+          q("Una reunion empieza a llenarse de excusas y detalles sin decision. Que debe hacer el supervisor?", ["Dejar que siga para que todos se desahoguen", "Volver al dato, definir accion, responsable y seguimiento", "Cancelar todas las reuniones futuras"], 1, "Correcto. La reunion debe producir decisiones."),
+          q("Cual cierre es mas fuerte?", ["Veamos como nos va", "Carlos cubre piso 1 hoy, Ana verifica banos a las 2 pm y yo reviso quejas a las 4 pm", "Todos pendientes"], 1, "Bien. Especifica responsables y tiempos."),
+          q("Una reunion corta sirve si...", ["Aclara prioridades y acciones", "Solo repite informacion vieja", "Evita revisar el piso"], 0, "Exacto. Breve no significa superficial.")
+        ]
+      },
+      {
+        id: 18, track: "Mejora", title: "Sistema personal del supervisor", subtitle: "Una forma sencilla y repetible de controlar limpieza todos los dias.",
+        sections: [
+          ["Tu sistema", "Debe incluir arranque, tablero, caminata, revision con lideres, seguimiento de quejas, materiales y acciones."],
+          ["Constancia", "No se controla solo cuando hay problema. La rutina evita sorpresas."],
+          ["Criterio", "El buen supervisor combina respeto por la gente con firmeza en estandares, seguridad y cumplimiento."]
+        ],
+        activity: { title: "Playbook personal", promptA: "Escribe tu rutina diaria como supervisor de limpieza.", promptB: "Escribe tres reglas que no vas a negociar: seguridad, calidad, respeto, registro u otra." },
+        quiz: [
+          q("Cual rutina muestra mejor supervision?", ["Revisar solo cuando el cliente reclama", "Arranque, caminata, tablero, seguimiento con lideres y cierre de pendientes", "Esperar reportes al final del mes"], 1, "Correcto. La supervision se sostiene con rutina."),
+          q("Un buen supervisor de limpieza combina...", ["Respeto por la gente y firmeza en estandares", "Amistad con todos y cero seguimiento", "Solo presion para terminar rapido"], 0, "Bien. Ni maltrato ni permisividad."),
+          q("El playbook personal sirve para...", ["Repetir buenas practicas aunque el dia este cargado", "Tener mas papeles", "Evitar hablar con el equipo"], 0, "Exacto. El sistema ayuda cuando hay presion.")
+        ]
+      }
+    ]);
+
+    extraFinal.splice(0, extraFinal.length,
+      q("Un supervisor encuentra tres banos con falta de jabon. Cual respuesta analiza mejor el problema?", ["Pedir al operario que corra mas", "Revisar reposicion, consumo, frecuencia de chequeo, inventario y responsable", "Esperar a que bodega lo note"], 1, "La respuesta correcta mira el sistema completo."),
+      q("El cliente pide una limpieza extra, pero eso dejaria sin atender un area critica. Que conviene hacer?", ["Aceptar sin decir nada y ver como se resuelve", "Evaluar prioridad, impacto, recursos y comunicar opciones al cliente o jefe", "Negarse porque no estaba en la ruta"], 1, "El supervisor decide con criterio y comunica impactos."),
+      q("Un lider reporta tarde una falta de personal. Cual accion desarrolla mejor al lider?", ["Quitarle autoridad de inmediato", "Revisar por que aviso tarde y definir regla clara de reporte temprano", "Ignorarlo si al final se cubrio"], 1, "Se corrige el comportamiento y se mejora el sistema."),
+      q("Una queja se repite cada viernes en el comedor. Que dato ayuda mas?", ["Quien estaba de humor ese dia", "Trafico del comedor, horario de limpieza, cobertura y reposicion", "Color de las paredes"], 1, "La repeticion pide revisar patron y causa."),
+      q("El equipo quiere usar menos senales de piso mojado para terminar mas rapido. Que debe decidir el supervisor?", ["Permitirlo si no hay mucha gente", "Mantener senalizacion y revisar como ganar tiempo sin crear riesgo", "Quitar la tarea del reporte"], 1, "La seguridad no se negocia por velocidad."),
+      q("Cual es la mejor evidencia de que una accion funciono?", ["El lider dijo que ya esta", "Bajaron quejas o retrabajos y la revision confirma cumplimiento", "Nadie volvio a hablar del tema"], 1, "Evidencia significa resultado visible o medible.")
+    );
+
+    const finalQuestionBank = [
+      q("Un bano de alto trafico aparece sin papel a media manana. La ruta fue marcada como completada. Que decision muestra mejor criterio de supervisor?", ["Pedir al lider que revise si la ruta se marco antes de tiempo y ajustar frecuencia si el consumo real supera lo planeado", "Reponer papel de inmediato, anotar la queja y esperar a ver si vuelve a pasar durante la semana", "Hablar con bodega para que entregue mas papel todos los dias, aunque no haya datos de consumo"], 0, "La mejor respuesta corrige el momento inmediato y revisa si el sistema de ruta/frecuencia esta fallando."),
+      q("Un cliente pide limpiar una sala de reuniones de inmediato, pero eso atrasaria la limpieza programada de banos. Que debe hacer el supervisor?", ["Aceptar la solicitud, mover personal y luego explicar al cliente si algun bano queda atrasado", "Evaluar prioridad, riesgo e impacto; si mueve recursos, avisar que se ajusta y proteger las areas criticas", "Negarse porque las solicitudes fuera de ruta siempre deben esperar al siguiente turno"], 1, "No toda solicitud urgente pesa igual. El supervisor decide con impacto y comunica el ajuste."),
+      q("Una lider dice que su equipo no termina porque 'la gente esta lenta'. Que respuesta del supervisor ayuda mas a encontrar la causa?", ["Pedirle nombres de quienes estan lentos para corregirlos individualmente", "Comparar carga, ausencias, materiales, tiempo de ruta y puntos donde se acumula atraso", "Decirle que motive mejor al equipo y revisar al final del dia"], 1, "La explicacion puede estar en personas, pero primero hay que revisar condiciones y carga real."),
+      q("Durante una caminata, un operario esta limpiando sin guantes porque 'solo sera un momento'. Que accion es mas completa?", ["Detener la tarea, pedir EPP y revisar con el lider por que la persona inicio sin proteccion", "Pedirle que use guantes la proxima vez y anotar la observacion para la reunion semanal", "Avisar al lider para que lo corrija cuando termine la ruta"], 0, "Hay un riesgo presente. Primero se controla, luego se revisa por que ocurrio."),
+      q("El indicador de quejas bajo, pero el retrabajo subio. Que lectura es mas madura?", ["El cliente esta mas conforme, asi que el retrabajo no es tan importante", "Puede que el equipo este corrigiendo antes de que el cliente vea, pero hay perdida de tiempo que debe analizarse", "El retrabajo alto demuestra que los lideres estan revisando mejor y no requiere accion"], 1, "Bajar quejas es bueno, pero retrabajo alto puede esconder fallas de proceso."),
+      q("Un lider muy bueno siempre cubre ausencias quedandose mas tiempo. Que debe hacer el supervisor?", ["Agradecerle y seguir usandolo porque ya conoce la operacion", "Revisar el patron, crear cobertura alternativa y cuidar que no se vuelva dependencia o sobrecarga", "Pedirle que entrene a todos en una semana para eliminar el problema"], 1, "La buena voluntad ayuda, pero no debe convertirse en riesgo de cansancio o dependencia."),
+      q("Un operario propone usar un quimico no aprobado porque remueve mejor una mancha. La mancha esta frente al cliente. Que respuesta es mejor?", ["No usar el quimico, contener la apariencia del area y escalar la necesidad de metodo aprobado", "Usarlo una sola vez, documentarlo y despues pedir aprobacion si funciono", "Pedir al operario que lo use con cuidado y lejos del publico"], 0, "La presion del cliente no justifica un quimico no aprobado."),
+      q("Un area se ve limpia, pero el registro de limpieza no esta firmado. Que hace mejor el supervisor?", ["Aceptar el area si visualmente esta bien y pedir que firmen despues", "Verificar que se haya ejecutado, corregir el registro segun procedimiento y reforzar firma en tiempo real", "Repetir la limpieza completa aunque haya evidencia verbal"], 1, "La evidencia importa, pero la respuesta debe investigar y corregir sin inventar datos."),
+      q("Dos lideres discuten porque ambos necesitan la misma maquina a la misma hora. Que accion muestra mejor supervision?", ["Darle prioridad al lider con mas antiguedad para evitar conflicto", "Revisar prioridades de areas, horarios, impacto al cliente y dejar una regla de programacion", "Pedirles que se pongan de acuerdo y avisar si no pueden resolver"], 1, "El supervisor convierte el conflicto en una regla operativa clara."),
+      q("El comedor recibe quejas despues del almuerzo todos los viernes. Que opcion analiza mejor?", ["Reforzar al operario asignado los viernes porque el patron ya muestra quien falla", "Revisar trafico, horario de salida, frecuencia posterior al almuerzo, cobertura y materiales", "Pedir al cliente que reporte con fotos para tener evidencia antes de actuar"], 1, "Un patron repetido se analiza con condiciones de operacion, no solo con culpables."),
+      q("En el arranque faltan dos personas y hay visita del cliente. Que comunicacion es mejor hacia los lideres?", ["Hoy todos deben correr; lo importante es que el cliente no note nada", "Estas son las areas criticas, estos cambios de ruta haremos, esto queda en seguimiento y a esta hora revisamos", "Cada lider decide como cubrir su parte y al final vemos que falto"], 1, "La comunicacion debe dar prioridad, plan y seguimiento."),
+      q("Un operario nuevo limpia bien, pero tarda mucho mas que la ruta asignada. Que hace mejor el supervisor?", ["Bajarle la carga permanentemente para evitar errores", "Revisar entrenamiento, tecnica, herramientas y si el tiempo estandar es realista", "Pedirle al lider que lo presione porque la calidad ya esta bien"], 1, "Puede ser aprendizaje, metodo, herramienta o estandar mal calculado."),
+      q("El cliente felicita el brillo de pisos, pero seguridad reporta senales mal colocadas durante el trapeado. Que lectura es correcta?", ["El resultado fue bueno, pero el metodo genero riesgo y debe corregirse", "La felicitacion del cliente pesa mas porque no hubo accidente", "Solo hay que entrenar al equipo si seguridad presenta evidencia formal"], 0, "La calidad visible no compensa un riesgo de seguridad."),
+      q("Una lider marca una accion como cerrada: 'se hablo con el equipo'. La queja se repite. Que debe pedir el supervisor?", ["Que vuelva a hablar con mas firmeza", "Una accion observable: cambio de frecuencia, responsable, evidencia y verificacion", "Que cambie al operario asignado al area"], 1, "Hablar puede ser parte de la accion, pero no siempre controla la causa."),
+      q("Bodega entrega tarde bolsas de basura por segunda vez. Que escalamiento es mejor?", ["Bodega siempre llega tarde y afecta al equipo", "Las bolsas llegaron 50 minutos tarde lunes y miercoles; se atrasaron rutas 2 y 4; se solicita horario fijo o stock minimo", "Necesitamos mas apoyo de bodega para trabajar bien"], 1, "El mejor escalamiento trae datos, impacto y solicitud concreta."),
+      q("Un supervisor ve que un lider resuelve todo solo y casi no delega. El area sale bien, pero el lider esta agotado. Que conviene hacer?", ["No intervenir porque los resultados estan bien", "Trabajar con el lider una distribucion de tareas y puntos de control para desarrollar al equipo", "Pedirle que mantenga el ritmo hasta que aparezca una persona fuerte"], 1, "Un resultado bueno con agotamiento puede no ser sostenible."),
+      q("Hay una queja por olor en banos aunque el checklist aparece completo. Que pregunta es mas util?", ["Quien firmo el checklist?", "Que se reviso exactamente: drenajes, basureros, ventilacion, frecuencia, quimico y hora de ultima limpieza?", "Por que el cliente no aviso antes?"], 1, "La firma sola no explica el olor. Hay que revisar variables concretas."),
+      q("Una oficina queda sin limpiar porque el cliente no permitio entrada durante la ruta. Que registro es mas profesional?", ["No se limpio porque no dejaron entrar", "Oficina 204 sin acceso a las 8:15; cliente solicito regresar 11:30; lider Ana reprograma y confirma cierre", "Pendiente por cliente"], 1, "El registro util dice lugar, hora, causa, plan y responsable."),
+      q("El equipo esta usando mas bolsas de lo normal. Que respuesta evita una conclusion apresurada?", ["Decirles que gasten menos porque el presupuesto subira", "Revisar ocupacion, eventos, cambio de rutas, tipo de basura, desperdicio y control de entrega", "Cambiar a bolsas mas pequenas de inmediato"], 1, "El consumo puede subir por varias razones. Se analiza antes de corregir."),
+      q("Un lider pide mas personal para una ruta. Que dato debe pedir primero el supervisor?", ["Si el equipo esta de acuerdo con el lider", "Tiempo real de tareas, metros/areas, frecuencia, ausencias, retrabajos y que queda sin cubrir", "Cuantos anos lleva el lider en esa area"], 1, "Mas personal puede ser necesario, pero se justifica con carga y resultados."),
+      q("El supervisor encuentra una botella con quimico sin etiqueta en el carro. Que accion muestra mejor control?", ["Retirar la botella, identificar origen, revisar carros similares y reforzar rotulado con lideres", "Preguntar de quien es y pedirle que no lo repita", "Botarla y continuar porque ya no hay riesgo"], 0, "Hay que controlar el caso y revisar si el problema esta repetido."),
+      q("Una ruta se completa al 100%, pero el cliente sigue reportando polvo en escritorios. Que hipotesis es mejor?", ["La ruta puede estar completa en papel, pero el estandar o la revision de detalle no esta funcionando", "El cliente esta siendo demasiado exigente", "El equipo necesita trabajar mas rapido"], 0, "Cumplir ruta no siempre significa cumplir calidad."),
+      q("Un operario se molesta porque el supervisor le corrige una tarea que el lider ya aprobo. Que manejo es mejor?", ["Decirle que el supervisor tiene mas autoridad y debe obedecer", "Corregir el estandar con respeto y luego alinear criterio con el lider para evitar mensajes cruzados", "Ignorar la situacion para no debilitar al lider"], 1, "Se corrige el trabajo y se cuida la cadena de mando."),
+      q("Despues de un evento, el area comun queda peor de lo normal. Que plan es mas fuerte?", ["Pedir al turno que se esfuerce mas los dias de evento", "Crear una rutina especial para eventos: antes, durante, despues, recursos y responsable", "Esperar a que el cliente confirme cuantos eventos tendra"], 1, "Eventos cambian la carga; necesitan plan especial."),
+      q("Una persona con experiencia se niega a usar el nuevo formato de revision porque 'antes no hacia falta'. Que debe hacer el supervisor?", ["Aceptar su criterio porque tiene experiencia", "Explicar el proposito, practicar el uso y dar seguimiento hasta que se cumpla", "Pedir a otro que llene el formato para evitar conflicto"], 1, "La experiencia ayuda, pero no reemplaza el estandar."),
+      q("El indicador de asistencia esta estable, pero las quejas suben al final del turno. Que deberia revisar el supervisor?", ["Si el equipo baja ritmo al final, carga de cierre, supervision, cansancio y prioridades de ultima hora", "Solo la asistencia, porque si todos vinieron no deberia haber problema", "Cambiar el horario de todos inmediatamente"], 0, "Asistencia estable no asegura calidad durante todo el turno."),
+      q("Un cliente pide que se use mas desinfectante porque 'huele a limpio'. Que respuesta es mejor?", ["Aceptar para mejorar percepcion del cliente", "Explicar que se usa concentracion aprobada y revisar si el problema es olor, frecuencia o ventilacion", "Usar mas producto solo en areas visibles"], 1, "Mas producto no siempre es mejor ni seguro."),
+      q("El supervisor quiere saber si los lideres revisan bien. Que evidencia es mas confiable?", ["Que los lideres digan que revisan todo", "Comparar hallazgos de caminata, registros, quejas y retrabajos por area", "Preguntar a los operarios quien revisa mas"], 1, "La evidencia combina observacion y resultados."),
+      q("Un equipo cumple rapido pero deja carros desordenados y materiales abiertos. Que debe leer el supervisor?", ["Son productivos, solo necesitan ordenar cuando haya tiempo", "La velocidad esta afectando estandar y seguridad; debe corregirse el cierre de tarea", "El orden no importa si el cliente no lo ve"], 1, "La forma de cerrar el trabajo tambien es parte del estandar."),
+      q("Un lider informa que no reporto una queja menor porque la resolvio. Que respuesta es mas adecuada?", ["Felicitarlo y decirle que no reporte lo menor", "Reconocer la solucion, pero pedir registro porque las quejas menores muestran tendencias", "Pedirle que reporte solo si el cliente insiste"], 1, "Resolver es bueno; registrar ayuda a prevenir repeticion."),
+      q("Hay tres acciones abiertas vencidas. Que debe hacer el supervisor en la reunion?", ["Revisar una por una: bloqueo, nuevo compromiso, responsable y si aun controla el problema", "Pedir que las cierren hoy para mejorar el indicador", "Eliminar las que ya no parecen urgentes"], 0, "Acciones vencidas requieren decision, no maquillaje del tablero."),
+      q("Una maquina deja marcas en el piso, pero permite terminar mas rapido. Que decision es mas responsable?", ["Usarla solo en areas menos visibles", "Detener o limitar uso, reportar mantenimiento y ajustar ruta mientras se corrige", "Seguir usandola si despues se pasa mopa"], 1, "Rapidez no compensa dano o retrabajo."),
+      q("El supervisor escucha que un lider habla fuerte al equipo en publico. El area va al dia. Que debe hacer?", ["No intervenir porque el resultado esta bien", "Conversar con el lider sobre forma de corregir, respeto y efecto en el equipo", "Corregir al lider publicamente para equilibrar"], 1, "El resultado operativo no justifica una mala forma de liderazgo."),
+      q("Una ruta critica depende de una sola persona que conoce todos los detalles. Que riesgo ve el supervisor?", ["Ninguno, porque la persona es confiable", "Dependencia: si falta, baja la calidad; hay que documentar y entrenar respaldo", "Solo riesgo si la persona se queja"], 1, "La dependencia de una persona vuelve fragil la operacion."),
+      q("Se reporta accidente menor por resbalon. Nadie se lesiono fuerte. Que respuesta es mejor?", ["Registrar, revisar causa, corregir condicion y reforzar prevencion aunque no haya lesion grave", "Agradecer que no paso nada y cerrar el caso", "Esperar a ver si se repite para investigar"], 0, "Un casi accidente o accidente menor es oportunidad de prevenir uno grave."),
+      q("El supervisor debe decidir entre terminar una tarea especial o mantener reposicion de banos en hora pico. Que criterio pesa mas?", ["La tarea especial porque normalmente la pidio alguien de mas nivel", "El riesgo de impacto al cliente, higiene y frecuencia critica antes de mover recursos", "La tarea que el equipo prefiera hacer"], 1, "La prioridad se decide por impacto, no por jerarquia o preferencia.")
+    ];
+
+    let state = loadState();
+    let finalSet = [];
+    let finalAnswers = [];
+
+    function authMessage(text, type) {
+      const box = document.getElementById("authMsg");
+      box.textContent = text;
+      box.className = "auth-msg show " + (type || "err");
+    }
+
+    function toggleAuthMode() {
+      authMode = authMode === "login" ? "signup" : "login";
+      document.getElementById("authTitle").textContent = authMode === "login" ? "Entrar a Supervisor Mastery" : "Crear usuario";
+      document.getElementById("authSubtitle").textContent = authMode === "login"
+        ? "Usa tu correo y contrasena para continuar tu avance."
+        : "Crea tu acceso para que tu progreso quede separado.";
+      document.getElementById("authPrimary").textContent = authMode === "login" ? "Entrar" : "Crear usuario";
+      document.getElementById("authToggleBtn").textContent = authMode === "login" ? "Crear usuario nuevo" : "Ya tengo usuario";
+      document.getElementById("authMsg").className = "auth-msg";
+    }
+
+    async function handleAuth() {
+      if (!supabaseClient) {
+        authMessage("No se pudo cargar Supabase. Revisa la conexion a internet e intenta de nuevo.", "err");
+        return;
+      }
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value;
+      if (!email || !password) {
+        authMessage("Escribe correo y contrasena.", "err");
+        return;
+      }
+      if (password.length < 6) {
+        authMessage("La contrasena debe tener al menos 6 caracteres.", "err");
+        return;
+      }
+      document.getElementById("authPrimary").disabled = true;
+      const result = authMode === "login"
+        ? await supabaseClient.auth.signInWithPassword({ email, password })
+        : await supabaseClient.auth.signUp({ email, password });
+      document.getElementById("authPrimary").disabled = false;
+      if (result.error) {
+        authMessage(result.error.message || "No se pudo completar el acceso.", "err");
+        return;
+      }
+      if (authMode === "signup" && !result.data.session) {
+        authMessage("Usuario creado. Revisa tu correo si Supabase solicita confirmacion antes de entrar.", "ok");
+        return;
+      }
+      await enterAcademy(result.data.user || result.data.session.user);
+    }
+
+    async function sendPasswordReset() {
+      if (!supabaseClient) {
+        authMessage("No se pudo cargar Supabase.", "err");
+        return;
+      }
+      const email = document.getElementById("authEmail").value.trim();
+      if (!email) {
+        authMessage("Escribe tu correo para enviar recuperacion.", "err");
+        return;
+      }
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+      if (error) authMessage(error.message || "No se pudo enviar la recuperacion.", "err");
+      else authMessage("Si el correo existe, recibira un enlace de recuperacion.", "ok");
+    }
+
+    async function signOut() {
+      if (supabaseClient) await supabaseClient.auth.signOut();
+      currentUser = null;
+      document.querySelector(".app").classList.remove("ready");
+      document.getElementById("authOverlay").classList.remove("hidden");
+    }
+
+    async function bootAuth() {
+      if (!supabaseClient) {
+        authMessage("No se pudo cargar Supabase. Revisa la conexion a internet.", "err");
+        return;
+      }
+      const { data } = await supabaseClient.auth.getSession();
+      if (data.session && data.session.user) {
+        await enterAcademy(data.session.user);
+      }
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        if (session && session.user && (!currentUser || currentUser.id !== session.user.id)) enterAcademy(session.user);
+      });
+    }
+
+    async function enterAcademy(user) {
+      currentUser = user;
+      STORE_KEY = STORE_PREFIX + "_" + user.id;
+      state = loadState();
+      if (!state.profileName && user.user_metadata && user.user_metadata.full_name) state.profileName = user.user_metadata.full_name;
+      save();
+      init();
+      document.getElementById("sessionEmail").innerHTML = "<strong>Sesion:</strong><br>" + escapeHtml(user.email || "");
+      document.getElementById("authOverlay").classList.add("hidden");
+      document.querySelector(".app").classList.add("ready");
+    }
+
+    function loadState() {
+      const base = { completed: [], finalScore: null, notes: {}, activities: {}, certName: "", certOrg: "", profileName: "", profileOrg: "" };
+      try { return Object.assign(base, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); }
+      catch (e) { return base; }
+    }
+    function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+    function init() {
+      document.getElementById("studentName").value = state.profileName || "";
+      document.getElementById("studentOrg").value = state.profileOrg || "";
+      buildNav();
+      buildModules();
+      buildFinal();
+      buildResources();
+      updateProgress();
+    }
+
+    function saveProfile() {
+      state.profileName = document.getElementById("studentName").value.trim();
+      state.profileOrg = document.getElementById("studentOrg").value.trim();
+      save();
+    }
+
+    function buildNav() {
+      const nav = document.getElementById("nav");
+      nav.innerHTML = "<button onclick=\"showSection('home')\" id=\"nav-home\" class=\"active\"><span class=\"dot\">I</span><span class=\"nav-title\">Inicio</span></button>" +
+        modules.map(m => `<button onclick="showSection('module-${m.id}')" id="nav-module-${m.id}"><span class="dot" data-dot="module-${m.id}">${m.id}</span><span class="nav-title">${m.id}. ${m.title}</span></button>`).join("");
+    }
+
+    function buildModules() {
+      document.getElementById("modulesRoot").innerHTML = modules.map(m => `
+        <section id="module-${m.id}" class="section">
+          <article class="module-header">
+            <span class="chip">${m.track}</span>
+            <h2>${m.id}. ${m.title}</h2>
+            <p>${m.subtitle}</p>
+          </article>
+          <div class="module-body">
+            <article class="module">
+              <h3>Leccion</h3>
+              <div class="lesson-list">
+                ${m.sections.map(s => `<div class="lesson"><strong>${s[0]}</strong><span>${s[1]}</span></div>`).join("")}
+              </div>
+            </article>
+            ${activityHTML(m)}
+            ${quizHTML(m)}
+            <article class="notes">
+              <label for="note-${m.id}">Notas personales del modulo</label>
+              <textarea id="note-${m.id}" data-module-note="${m.id}" oninput="saveNote(${m.id}, this.value)" placeholder="Ideas, compromisos o ejemplos de tu operacion...">${state.notes[m.id] || ""}</textarea>
+            </article>
+            <article class="completion-panel ${state.completed.includes(m.id) ? "show" : ""}" id="complete-panel-${m.id}">
+              <strong>Modulo completado</strong>
+              <p>${m.id < modules.length ? "Puedes volver al inicio o continuar con el siguiente modulo." : "Ya completaste el ultimo modulo. Puedes ir al examen final."}</p>
+              <div class="btn-row">
+                <button class="btn secondary" onclick="showSection('home')">Volver al inicio</button>
+                <button class="btn" onclick="${m.id < modules.length ? `nextModule(${m.id})` : `showSection('final')`}">${m.id < modules.length ? "Ir al siguiente modulo" : "Ir al examen final"}</button>
+              </div>
+            </article>
+            <div class="btn-row">
+              <button class="btn" onclick="completeModule(${m.id})">${state.completed.includes(m.id) ? "Modulo completado" : "Marcar modulo como completado"}</button>
+              <button class="btn secondary" onclick="showSection('home')">Volver al inicio</button>
+              <button class="btn secondary" onclick="nextModule(${m.id})">${m.id < modules.length ? "Siguiente modulo" : "Examen final"}</button>
+            </div>
+          </div>
+        </section>
+      `).join("");
+    }
+
+    function activityHTML(m) {
+      const saved = state.activities[m.id] || {};
+      return `
+        <article class="activity">
+          <h3>Actividad aplicada: ${m.activity.title}</h3>
+          <p>Trabaja con una situacion real de tu operacion. Esto alimenta tu playbook final.</p>
+          <div class="activity-grid">
+            <div class="activity-field">
+              <label>${m.activity.promptA}</label>
+              <textarea oninput="saveActivity(${m.id}, 'a', this.value)">${saved.a || ""}</textarea>
+            </div>
+            <div class="activity-field">
+              <label>${m.activity.promptB}</label>
+              <textarea oninput="saveActivity(${m.id}, 'b', this.value)">${saved.b || ""}</textarea>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function quizHTML(m) {
+      return `
+        <article class="quiz">
+          <h3>Practica del modulo</h3>
+          ${m.quiz.map((question, qi) => `
+            <div class="quiz-question">
+              <strong>${question.text}</strong>
+              <div class="options">
+                ${question.options.map((opt, oi) => `<button class="option" onclick="answerQuestion(${m.id}, ${qi}, ${oi}, this)">${opt}</button>`).join("")}
+              </div>
+              <div class="feedback"></div>
+            </div>
+          `).join("")}
+        </article>
+      `;
+    }
+
+    function showSection(id) {
+      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+      const target = document.getElementById(id);
+      if (target) target.classList.add("active");
+      document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+      const nav = document.getElementById("nav-" + id);
+      if (nav) nav.classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function answerQuestion(moduleId, questionIndex, optionIndex, btn) {
+      const m = modules.find(x => x.id === moduleId);
+      const question = m.quiz[questionIndex];
+      const parent = btn.closest(".quiz-question");
+      parent.querySelectorAll(".option").forEach(o => o.classList.remove("correct", "incorrect"));
+      const correct = optionIndex === question.answer;
+      btn.classList.add(correct ? "correct" : "incorrect");
+      const fb = parent.querySelector(".feedback");
+      fb.textContent = question.feedback;
+      fb.className = "feedback show " + (correct ? "good" : "bad");
+    }
+
+    function saveNote(id, value) {
+      state.notes[id] = value;
+      save();
+    }
+
+    function saveActivity(id, key, value) {
+      if (!state.activities[id]) state.activities[id] = {};
+      state.activities[id][key] = value;
+      save();
+    }
+
+    function completeModule(id) {
+      if (!state.completed.includes(id)) state.completed.push(id);
+      save();
+      buildModules();
+      updateProgress();
+      showSection("module-" + id);
+      const panel = document.getElementById("complete-panel-" + id);
+      if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    function nextModule(id) {
+      if (id < modules.length) showSection("module-" + (id + 1));
+      else showSection("final");
+    }
+
+    function updateProgress() {
+      const percent = Math.round((state.completed.length / modules.length) * 100);
+      document.getElementById("progressText").textContent = percent + "%";
+      document.getElementById("progressBar").style.width = percent + "%";
+      document.getElementById("progressDetail").textContent = `${state.completed.length} de ${modules.length} modulos completados`;
+      document.querySelectorAll("[data-dot]").forEach(dot => {
+        const id = dot.dataset.dot;
+        const match = id.match(/module-(\d+)/);
+        if (match && state.completed.includes(Number(match[1]))) {
+          dot.classList.add("done");
+          dot.textContent = "✓";
+        } else if (id === "final" && state.finalScore !== null) {
+          dot.classList.add("done");
+          dot.textContent = "✓";
+        }
+      });
+    }
+
+    function buildFinal() {
+      const bank = finalQuestionBank.map(item => withShuffledOptions(item));
+      if (!finalSet.length) finalSet = shuffle(bank).slice(0, 30);
+      finalAnswers = Array(finalSet.length).fill(null);
+      const quizHtml = finalSet.map((question, i) => `
+        <div class="quiz-question">
+          <strong>${i + 1}. ${question.text}</strong>
+          <div class="options">
+            ${question.options.map((opt, oi) => `<button class="option" onclick="answerFinal(${i}, ${oi}, this)">${opt}</button>`).join("")}
+          </div>
+        </div>
+      `).join("");
+
+      document.getElementById("final").innerHTML = `
+        <article class="module-header">
+          <span class="chip">Evaluacion final</span>
+          <h2>Examen final aleatorio</h2>
+          <p>30 preguntas seleccionadas del banco de Supervisor Mastery. El examen evalua criterio para supervisar limpieza: rutas, lideres, asistencia, quejas, materiales, seguridad, calidad y seguimiento.</p>
+        </article>
+        <div class="module-body">
+          <div class="notice">Durante el examen no se revela la respuesta correcta. Puedes cambiar tus respuestas antes de calcular la puntuacion.</div>
+          <article class="quiz" id="finalQuiz">${quizHtml}</article>
+          <article class="card">
+            <h3>Resultado</h3>
+            <div class="final-score" id="finalScore">${state.finalScore === null ? "--" : state.finalScore + "%"}</div>
+            <p id="finalMessage">Completa las 30 preguntas para calcular tu puntuacion. El certificado se habilita con ${CERT_PASS}% o mas.</p>
+            <div class="btn-row">
+              <button class="btn" onclick="calculateFinal()">Calcular puntuacion</button>
+              <button class="btn secondary" onclick="resetFinal()">Nuevo set aleatorio</button>
+            </div>
+            <div id="certGate"></div>
+          </article>
+        </div>
+      `;
+      renderCertificateGate();
+    }
+
+    function withShuffledOptions(question) {
+      const options = question.options.map((text, index) => ({ text, correct: index === question.answer }));
+      const mixed = shuffle(options);
+      return {
+        text: question.text,
+        options: mixed.map(item => item.text),
+        answer: mixed.findIndex(item => item.correct),
+        feedback: question.feedback
+      };
+    }
+
+    function answerFinal(i, optionIndex, btn) {
+      const parent = btn.closest(".quiz-question");
+      parent.querySelectorAll(".option").forEach(o => o.classList.remove("selected"));
+      btn.classList.add("selected");
+      finalAnswers[i] = optionIndex;
+    }
+
+    function calculateFinal() {
+      const missing = finalAnswers.filter(v => v === null).length;
+      if (missing) {
+        alert("Faltan " + missing + " preguntas por responder.");
+        return;
+      }
+      let correct = 0;
+      finalSet.forEach((question, i) => { if (finalAnswers[i] === question.answer) correct++; });
+      state.finalScore = Math.round((correct / finalSet.length) * 100);
+      save();
+      document.getElementById("finalScore").textContent = state.finalScore + "%";
+      document.getElementById("finalMessage").textContent = state.finalScore >= CERT_PASS
+        ? "Aprobado. Ya puedes generar tu certificado."
+        : "Aun no alcanza para certificado. Revisa los modulos y vuelve a intentar con un nuevo set.";
+      renderCertificateGate();
+      updateProgress();
+    }
+
+    function resetFinal() {
+      finalSet = [];
+      finalAnswers = [];
+      state.finalScore = null;
+      save();
+      buildFinal();
+      updateProgress();
+    }
+
+    function renderCertificateGate() {
+      const gate = document.getElementById("certGate");
+      if (!gate) return;
+      if (state.finalScore === null) {
+        gate.innerHTML = '<div class="cert-gate locked"><strong>Certificado bloqueado</strong><p style="margin:6px 0 0">Completa el examen final para habilitar esta seccion.</p></div>';
+        return;
+      }
+      if (state.finalScore < CERT_PASS) {
+        gate.innerHTML = '<div class="cert-gate locked"><strong>Certificado</strong><p style="margin:6px 0 0">Necesitas al menos <strong>' + CERT_PASS + '%</strong>. Tu resultado actual es ' + state.finalScore + '%.</p></div>';
+        return;
+      }
+      gate.innerHTML = `
+        <div class="cert-gate">
+          <strong>Aprobado. Emite tu certificado</strong>
+          <div class="cert-fields">
+            <div class="full"><label>Nombre completo</label><input id="certNameInput" placeholder="Nombre y apellidos" value="${state.certName || state.profileName || ""}"></div>
+            <div class="full"><label>Empresa u organizacion (opcional)</label><input id="certOrgInput" placeholder="Ej. Operaciones Costa Rica" value="${state.certOrg || state.profileOrg || ""}"></div>
+          </div>
+          <button class="btn" onclick="openCertificate()">Generar certificado</button>
+        </div>`;
+    }
+
+    function certCode(name, score, dateStr) {
+      const base = (name + "|" + score + "|" + dateStr).toUpperCase();
+      let hash = 0;
+      for (let i = 0; i < base.length; i++) hash = ((hash << 5) - hash + base.charCodeAt(i)) >>> 0;
+      const part1 = (hash % 46656).toString(36).toUpperCase().padStart(4, "0");
+      const part2 = (Math.floor(hash / 46656) % 46656).toString(36).toUpperCase().padStart(4, "0");
+      return "SM-" + part1 + "-" + part2;
+    }
+
+    function openCertificate() {
+      const name = (document.getElementById("certNameInput")?.value || "").trim();
+      if (!name) { alert("Escribe tu nombre completo para el certificado."); return; }
+      const org = (document.getElementById("certOrgInput")?.value || "").trim();
+      state.certName = name;
+      state.certOrg = org;
+      save();
+      const dateStr = new Date().toLocaleDateString();
+      const code = certCode(name, state.finalScore, dateStr);
+      document.getElementById("certOverlay").innerHTML = `
+        <div class="cert-toolbar">
+          <button class="btn" onclick="window.print()">Descargar / Imprimir PDF</button>
+          <button class="btn secondary" onclick="closeCertificate()">Cerrar</button>
+        </div>
+        <div class="cert-sheet">
+          <div class="cert-inner">
+            <div class="cert-badge">SM</div>
+            <div class="cert-brand">Supervisor Mastery</div>
+            <div class="cert-title">Certificado de Aprovechamiento</div>
+            <div class="cert-sub">GESTION OPERATIVA POR INDICADORES</div>
+            <div class="cert-pre">Se otorga el presente certificado a</div>
+            <div class="cert-name">${escapeHtml(name)}</div>
+            <div class="cert-org">${escapeHtml(org)}</div>
+            <div class="cert-body">
+              Por completar y aprobar el programa <strong>Supervisor Mastery</strong>, enfocado en supervision de equipos de limpieza, control de rutas, calidad, asistencia, seguridad, materiales, quejas, indicadores y mejora continua.
+            </div>
+            <div class="cert-meta">
+              <div class="col"><div class="cert-line">Fecha: ${dateStr}</div></div>
+              <div class="col center"><span class="cert-score-chip">Puntuacion: ${state.finalScore}%</span></div>
+              <div class="col"><div class="cert-line">Academia Corporativa</div></div>
+            </div>
+            <div class="cert-verify">Codigo de verificacion: <span class="cert-code">${code}</span></div>
+          </div>
+        </div>`;
+      document.getElementById("certOverlay").classList.add("show");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeCertificate() {
+      document.getElementById("certOverlay").classList.remove("show");
+      document.body.style.overflow = "";
+    }
+
+    function buildResources() {
+      document.getElementById("resources").innerHTML = `
+        <article class="module-header">
+          <span class="chip">Recursos</span>
+          <h2>Herramientas del supervisor</h2>
+          <p>Plantillas breves para sostener la supervision diaria de limpieza despues del curso.</p>
+        </article>
+        <div class="grid two">
+          <article class="card"><h3>Tablero minimo de limpieza</h3><p>Cumplimiento de ruta, quejas, retrabajo, asistencia, accidentes, materiales criticos y acciones abiertas. Cada dato debe tener responsable y regla de reaccion.</p></article>
+          <article class="card"><h3>Rutina diaria</h3><p>Arranque de turno, revision de areas criticas, caminata, seguimiento con lideres, control de materiales y pase de turno.</p></article>
+          <article class="card"><h3>Matriz de escalamiento</h3><p>Define que resuelve el operario, que resuelve el lider, que escala el supervisor y que requiere apoyo de cliente, bodega, mantenimiento o gerencia.</p></article>
+          <article class="card"><h3>Registro de acciones</h3><p>Problema de limpieza, causa probable, accion, responsable, fecha, evidencia y verificacion para evitar que se repita.</p></article>
+        </div>
+      `;
+    }
+
+    function printSummary() { window.print(); }
+
+    function exportProgress() {
+      document.querySelectorAll("[data-module-note]").forEach(t => state.notes[t.dataset.moduleNote] = t.value);
+      save();
+      const lines = [
+        "Supervisor Mastery - Progreso y notas",
+        "Fecha de exportacion: " + new Date().toLocaleString(),
+        "Participante: " + (state.profileName || "Sin nombre"),
+        "Organizacion: " + (state.profileOrg || "No indicada"),
+        "Progreso: " + state.completed.length + "/" + modules.length + " modulos",
+        "Evaluacion final: " + (state.finalScore === null ? "sin completar" : state.finalScore + "%"),
+        "",
+        "Modulos:",
+        ...modules.map(m => `${state.completed.includes(m.id) ? "[x]" : "[ ]"} Modulo ${m.id}: ${m.title}`),
+        "",
+        "Actividades y notas:",
+        ...modules.flatMap(m => {
+          const act = state.activities[m.id] || {};
+          return [
+            "",
+            "Modulo " + m.id + " - " + m.title,
+            "Actividad A: " + (act.a || ""),
+            "Actividad B: " + (act.b || ""),
+            "Notas: " + (state.notes[m.id] || "")
+          ];
+        })
+      ];
+      const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "supervisor-mastery-progreso.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetProgress() {
+      if (!confirm("Esto borrara progreso, notas, actividades y resultados guardados en este navegador. Deseas continuar?")) return;
+      localStorage.removeItem(STORE_KEY);
+      location.reload();
+    }
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function escapeHtml(str) {
+      return String(str || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
+    }
+
+    bootAuth();
+  </script>
+</body>
+</html>
