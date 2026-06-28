@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <!-- © Lilly Tech — Propiedad de Lilly Tech. Todos los derechos reservados. -->
+  <meta name="author" content="Lilly Tech">
+  <meta name="copyright" content="© Lilly Tech. Todos los derechos reservados.">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Supervisor Mastery — Academia de Gestión Operativa</title>
@@ -342,6 +345,7 @@ a{color:inherit}
 .cert-name{font-family:'Fraunces',serif;font-size:2.4rem;font-weight:600;color:var(--ink);
   margin:8px 0 6px;border-bottom:2px solid var(--brass);display:inline-block;padding:0 24px 8px}
 .cert-desc{font-size:.92rem;color:var(--tx-soft);max-width:52ch;margin:14px auto 0;line-height:1.5}
+.cert-owner{margin-top:14px;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;color:var(--brass-deep);font-weight:700}
 .cert-foot{display:flex;justify-content:space-between;align-items:flex-end;width:100%;margin-top:26px;gap:20px}
 .cert-foot .cf{text-align:left}
 .cert-foot .cf .cfl{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tx-faint);font-weight:600}
@@ -542,7 +546,7 @@ tbody tr:hover{background:var(--paper-3)}
 <div id="auth">
   <div class="auth-card">
     <div class="brandmark">
-      <div class="seal">L</div>
+      <div class="seal">LT</div>
       <div><div class="bn">Supervisor Mastery</div><div class="bs">Gestión Operativa</div></div>
     </div>
     <h1 id="authTitle">Bienvenido de vuelta</h1>
@@ -569,7 +573,7 @@ tbody tr:hover{background:var(--paper-3)}
       <span id="toggleLabel">¿Aún no tenés cuenta?</span>
       <button id="toggleAuth">Crear cuenta</button>
     </div>
-    <div class="auth-foot">Supervisor Mastery · Plataforma de formación corporativa<br>Tu progreso se guarda en la nube de forma segura.</div>
+    <div class="auth-foot">Supervisor Mastery · Una academia de <b>Lilly Tech</b> · Plataforma de formación corporativa<br>© Lilly Tech. Todos los derechos reservados. · Tu progreso se guarda en la nube de forma segura.</div>
   </div>
 </div>
 
@@ -578,7 +582,7 @@ tbody tr:hover{background:var(--paper-3)}
   <!-- Sidebar (desktop) -->
   <aside class="sidebar">
     <div class="brandmark">
-      <div class="seal">L</div>
+      <div class="seal">LT</div>
       <div><div class="bn">Supervisor Mastery</div><div class="bs" style="font-size:.62rem">Gestión Operativa</div></div>
     </div>
     <button class="nav-item active" data-view="home">
@@ -635,7 +639,7 @@ tbody tr:hover{background:var(--paper-3)}
 
   <!-- Topbar (móvil) -->
   <div class="topbar">
-    <div class="brandmark"><div class="seal">L</div><div><div class="bn">Supervisor Mastery</div></div></div>
+    <div class="brandmark"><div class="seal">LT</div><div><div class="bn">Supervisor Mastery</div></div></div>
     <button class="tlogout" id="topLogout">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
     </button>
@@ -1045,14 +1049,15 @@ function renderCert(){
   vp.innerHTML=`<div class="view"><div class="cert-wrap">
     <div id="certificate">
       <div class="cert-border"></div>
-      <div class="cert-watermark">L</div>
+      <div class="cert-watermark">LT</div>
       <div class="cert-inner">
-        <div class="cert-seal">L</div>
+        <div class="cert-seal">LT</div>
         <div class="cert-acad">Supervisor Mastery</div>
         <div class="cert-h">Certificado de Finalización</div>
         <div class="cert-pre">Se otorga el presente certificado a</div>
         <div class="cert-name">${esc(c.name)}</div>
         <div class="cert-desc">Por haber completado satisfactoriamente la <b>Academia de Gestión Operativa</b>, demostrando dominio en gestión por indicadores, planificación, control de costos, productividad, calidad a escala y conducción de equipos grandes.</div>
+        <div class="cert-owner">Programa propiedad de Lilly Tech · © Lilly Tech</div>
         <div class="cert-foot">
           <div class="cf"><div class="cfl">Fecha</div><div class="cfv">${c.date}</div></div>
           <div class="cf"><div class="cfl">Puntuación</div><div class="cfv">${c.score}% · ${c.level}</div></div>
