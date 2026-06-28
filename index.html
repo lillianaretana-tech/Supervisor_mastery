@@ -365,6 +365,87 @@
       .cert-sheet { box-shadow: none; margin: 0 auto; max-width: 100%; border-width: 10px; }
       @page { size: landscape; margin: 12mm; }
     }
+
+    /* Safety-style academy skin */
+    body { background: #f4f1e8; color: #10172a; }
+    .app { grid-template-columns: 286px 1fr; }
+    .sidebar {
+      background: #101423;
+      border-right: 0;
+      color: #d9def3;
+      padding: 26px 20px;
+    }
+    .brand { margin-bottom: 24px; }
+    .brand-mark {
+      background: linear-gradient(135deg, #f2c06f, #a7641b);
+      color: #111423;
+      box-shadow: 0 10px 26px rgba(183,113,31,.35);
+    }
+    .brand h1 { color: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: 18px; }
+    .brand small { color: #f1c574; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; }
+    .session-card, .progress-box {
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.08);
+      color: #d9def3;
+    }
+    .session-card label, .progress-row, .progress-box small { color: #aeb6d1; }
+    .session-card input {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.12);
+      color: #fff;
+    }
+    .nav-section { color: #818aa8; border-top: 1px solid rgba(255,255,255,.08); padding-top: 18px; }
+    .nav button { color: #dbe2ff; border-radius: 10px; }
+    .nav button:hover, .nav button.active { background: rgba(190,128,45,.22); color: #fff; }
+    .dot { background: rgba(255,255,255,.1); color: #c7cee6; }
+    .dot.done { background: #2f8065; color: #fff; }
+    .main { padding: 46px 32px; }
+    .content { max-width: 1080px; }
+    .chip {
+      background: #ede6d6;
+      color: #8a5518;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    .hero {
+      border-radius: 22px;
+      background:
+        radial-gradient(500px 220px at 88% 50%, rgba(242,192,111,.13), transparent 60%),
+        linear-gradient(135deg, #111525, #1d2238 58%, #3b342f);
+      box-shadow: 0 28px 70px rgba(15,18,32,.24);
+      padding: 44px;
+    }
+    .hero h2, .module-header h2, .card h3, .module h3, .quiz h3, .notes label {
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+    .hero h2 { font-size: clamp(34px, 4.5vw, 52px); max-width: 760px; }
+    .hero p { color: #d8def0; }
+    .metric {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.16);
+      border-radius: 12px;
+    }
+    .card, .module, .quiz, .notes, .done-panel, .module-header {
+      border-color: #ded7c8;
+      border-radius: 14px;
+      box-shadow: 0 16px 38px rgba(27,32,46,.09);
+    }
+    .module-header {
+      padding: 28px;
+      background: #fffdfa;
+    }
+    .lesson {
+      background: #fbf7ed;
+      border-left-color: #bf7622;
+      border-radius: 0 12px 12px 0;
+      padding: 14px 16px;
+    }
+    .option { background: #f7f4ed; border-color: #e3dccf; border-radius: 10px; }
+    .option:hover { border-color: #bf7622; }
+    .btn { background: linear-gradient(135deg, #c47a22, #9d5c18); border-radius: 9px; }
+    .btn.secondary { background: #ece8de; color: #1b2435; }
+    .btn.danger { background: #b9443d; }
 </style>
 </head>
 <body>
@@ -1370,7 +1451,6 @@
                 ${m.sections.map(s => `<div class="lesson"><strong>${s[0]}</strong><span>${s[1]}</span></div>`).join("")}
               </div>
             </article>
-            ${activityHTML(m)}
             ${quizHTML(m)}
             <article class="notes">
               <label for="note-${m.id}">Notas personales del modulo</label>
@@ -1392,26 +1472,6 @@
           </div>
         </section>
       `).join("");
-    }
-
-    function activityHTML(m) {
-      const saved = state.activities[m.id] || {};
-      return `
-        <article class="activity">
-          <h3>Actividad aplicada: ${m.activity.title}</h3>
-          <p>Trabaja con una situacion real de tu operacion. Esto alimenta tu playbook final.</p>
-          <div class="activity-grid">
-            <div class="activity-field">
-              <label>${m.activity.promptA}</label>
-              <textarea oninput="saveActivity(${m.id}, 'a', this.value)">${saved.a || ""}</textarea>
-            </div>
-            <div class="activity-field">
-              <label>${m.activity.promptB}</label>
-              <textarea oninput="saveActivity(${m.id}, 'b', this.value)">${saved.b || ""}</textarea>
-            </div>
-          </div>
-        </article>
-      `;
     }
 
     function quizHTML(m) {
