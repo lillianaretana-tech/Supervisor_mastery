@@ -671,6 +671,49 @@ const TABLE = "sup_progress"; // tabla de progreso en Supabase
 let sb = null;
 try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e){ console.warn("Supabase no inicializado", e); }
 
+/* ===== LillyTech Core — analítica central (no bloquea la app) ===== */
+const CORE_URL = "https://vgkyoyosjewdygxtnqvu.supabase.co";
+const CORE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZna3lveW9zamV3ZHlneHRucXZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NTAxNDAsImV4cCI6MjA5ODIyNjE0MH0.oDxSWg61UFLqMh2MeEW6yxarZAjobhEA6TWm0KS_7CA";
+const CORE_COMPANY_ID = "2821771b-aa0b-40c0-92eb-c42fc384e96a"; // empresa demo
+const CORE_APP_KEY = "supervisor_mastery";
+const CORE_COURSE_KEY = "core_foundations";
+const CORE_ACADEMIA = "Supervisor Mastery";
+let coreSb = null;
+try { coreSb = supabase.createClient(CORE_URL, CORE_ANON); } catch(e){ console.warn("Core no inicializado", e); }
+
+// Reporta al Core que alguien aprobó el examen final. Tolerante a fallos.
+async function reportFinalToCore(score, durationSec){
+  try{
+    if(!coreSb || !USER || USER.guest || !USER.email) return; // invitados o sin sesión: no se reporta
+    // resolver app_id y course_id (una sola vez)
+    if(!reportFinalToCore._ids){
+      const { data: app } = await coreSb.from("apps").select("id").eq("app_key", CORE_APP_KEY).maybeSingle();
+      let courseId = null;
+      if(app){
+        const { data: course } = await coreSb.from("courses").select("id").eq("app_id", app.id).eq("course_key", CORE_COURSE_KEY).maybeSingle();
+        courseId = course ? course.id : null;
+      }
+      reportFinalToCore._ids = { appId: app ? app.id : null, courseId };
+    }
+    const { appId, courseId } = reportFinalToCore._ids;
+    // asegurar el perfil del participante en la empresa demo (por email)
+    let profileId = null;
+    const { data: prof } = await coreSb.from("users_profile").select("id").eq("company_id", CORE_COMPANY_ID).eq("email", USER.email).maybeSingle();
+    if(prof){ profileId = prof.id; }
+    else {
+      const { data: ins } = await coreSb.from("users_profile").insert({ company_id: CORE_COMPANY_ID, email: USER.email, full_name: USER.name || USER.email, status: "active" }).select("id").maybeSingle();
+      profileId = ins ? ins.id : null;
+    }
+    const base = { app_id: appId, course_id: courseId, user_profile_id: profileId, company_id: CORE_COMPANY_ID, source_app: CORE_APP_KEY };
+    const dur = (durationSec!=null) ? durationSec : null;
+    await coreSb.from("analytics_events").insert([
+      { ...base, event_type:"quiz_completed",        score, duration_seconds:dur, metadata:{ quiz_name:"Evaluación final", passed:true, academia:CORE_ACADEMIA } },
+      { ...base, event_type:"course_completed",      score, duration_seconds:dur, metadata:{ academia:CORE_ACADEMIA } },
+      { ...base, event_type:"certificate_generated", score,                       metadata:{ academia:CORE_ACADEMIA } }
+    ]);
+  }catch(e){ console.warn("reportFinalToCore:", e); }
+}
+
 /* =================================================================
    PLATAFORMA — multi-academia (escalable)
    Para agregar una academia nueva: empujás un objeto a PLATFORM.academies.
@@ -1388,6 +1431,8 @@ async function finishModule(){
     // aprueba → certificar
     if(!STATE.completed.includes(m.id)){ STATE.completed.push(m.id); awardXP(m.xp,true); }
     issueCertificate(score);
+    // avisar al Core (no bloquea): alguien aprobó el examen final
+    reportFinalToCore(score, Math.round((Date.now()-L.enterT)/1000));
   } else {
     if(!STATE.completed.includes(m.id)){ STATE.completed.push(m.id); awardXP(m.xp,true); }
   }
