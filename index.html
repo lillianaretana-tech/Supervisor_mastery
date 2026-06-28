@@ -482,6 +482,7 @@
     let STORE_KEY = STORE_PREFIX + "_guest";
     let authMode = "login";
     let currentUser = null;
+    let syncTimer = null;
     const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
     function q(text, options, answer, feedback) {
@@ -1273,6 +1274,7 @@
       currentUser = user;
       STORE_KEY = STORE_PREFIX + "_" + user.id;
       state = loadState();
+      await loadRemoteState();
       if (!state.profileName && user.user_metadata && user.user_metadata.full_name) state.profileName = user.user_metadata.full_name;
       save();
       init();
@@ -1286,7 +1288,50 @@
       try { return Object.assign(base, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); }
       catch (e) { return base; }
     }
-    function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    function save() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      scheduleProgressSync();
+    }
+
+    async function loadRemoteState() {
+      if (!supabaseClient || !currentUser) return;
+      const { data, error } = await supabaseClient
+        .from("supervisor_progress")
+        .select("state")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+      if (!error && data && data.state) {
+        state = Object.assign(state, data.state);
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      }
+    }
+
+    function scheduleProgressSync() {
+      if (!supabaseClient || !currentUser) return;
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(syncProgress, 650);
+    }
+
+    async function syncProgress() {
+      if (!supabaseClient || !currentUser) return;
+      await supabaseClient.from("supervisor_progress").upsert({
+        user_id: currentUser.id,
+        state,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "user_id" });
+    }
+
+    async function registerCertificate(code, name, org, dateStr) {
+      if (!supabaseClient || !currentUser) return;
+      await supabaseClient.from("supervisor_certificates").insert({
+        user_id: currentUser.id,
+        code,
+        participant_name: name,
+        organization: org || null,
+        score: state.finalScore,
+        issued_at: new Date().toISOString()
+      });
+    }
 
     function init() {
       document.getElementById("studentName").value = state.profileName || "";
@@ -1574,6 +1619,7 @@
       save();
       const dateStr = new Date().toLocaleDateString();
       const code = certCode(name, state.finalScore, dateStr);
+      registerCertificate(code, name, org);
       document.getElementById("certOverlay").innerHTML = `
         <div class="cert-toolbar">
           <button class="btn" onclick="window.print()">Descargar / Imprimir PDF</button>
